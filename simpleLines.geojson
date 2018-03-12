@@ -1,0 +1,165 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-71.0,20.0],[-70.0, 20.0],[-69.0, 20.0],[-68.0, 20.0],[-67.0, 20.0],[-66.0, 20.0]]
+      },
+      "properties": {
+        "name":"Line1"
+      }
+    },
+	{
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-71.0,20.2],[-70.0,20.2],[-69.0,20.2],[-68.0,20.2],[-67.0,20.2],[-66.0,20.2]]
+      },
+      "properties": {
+        "name":"Line2"
+      }
+    },
+	{
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-71.0,20.7],[-70.0, 20.7],[-69.0, 20.7],[-68.0, 20.7],[-67.0, 20.7],[-66.0, 20.7]]
+      },
+      "properties": {
+        "name":"Line3"
+      }
+    },
+	{
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-71.0,20.0],[-70.0,20.9],[-69.0,20.9],[-68.0,20.9],[-67.0,20.9],[-66.0,20.9]]
+      },
+      "properties": {
+        "name":"Line4"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-71.0,22.0],[-70.0, 22.0],[-69.0, 22.0],[-68.0, 22.0],[-67.0, 22.0],[-66.0, 22.0]]
+      },
+      "properties": {
+        "name":"Line5"
+      }
+    },
+	{
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-71.0,22.3],[-70.0,22.3],[-69.0,22.3],[-68.0,22.3],[-67.0,22.3],[-66.0,22.3]]
+      },
+      "properties": {
+        "name":"Line6"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-71.0,22.5],[-70.0, 22.5],[-69.0, 22.5],[-68.0, 22.5],[-67.0, 22.5],[-66.0, 22.5]]
+      },
+      "properties": {
+        "name":"Line7"
+      }
+    },
+	{
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-71.0,22.9],[-70.0,22.9],[-69.0,22.9],[-68.0,22.9],[-67.0,22.9],[-66.0,22.9]]
+      },
+      "properties": {
+        "name":"Line8"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-71.0,24.0],[-70.0, 24.0],[-69.0, 24.0],[-68.0, 24.0],[-67.0, 24.0],[-66.0, 24.0]]
+      },
+      "properties": {
+        "name":"Line9"
+      }
+    },
+	{
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-71.0,24.5],[-70.0,24.5],[-69.0,24.5],[-68.0,24.5],[-67.0,24.5],[-66.0,24.5]]
+      },
+      "properties": {
+        "name":"Line10"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-71.0,24.8],[-70.0,24.8],[-69.0,24.8],[-68.0,24.8],[-67.0,24.8],[-66.0,24.8]]
+      },
+      "properties": {
+        "name":"Line11"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-71.0,24.9],[-70.0, 24.9],[-69.0, 24.9],[-68.0, 24.9],[-67.0, 24.9],[-66.0, 24.9]]
+      },
+      "properties": {
+        "name":"Line12"
+      }
+    },
+	{
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-71.0,26.0],[-70.0,26.0],[-69.0,26.0],[-68.0,26.0],[-67.0,26.0],[-66.0,26.0]]
+      },
+      "properties": {
+        "name":"Line13"
+      }
+    },
+	{
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-71.0,26.4],[-70.0, 26.4],[-69.0, 26.4],[-68.0, 26.4],[-67.0, 26.4],[-66.0, 26.4]]
+      },
+      "properties": {
+        "name":"Line14"
+      }
+    },
+	{
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-71.0,26.6],[-70.0,26.6],[-69.0,26.6],[-68.0,26.6],[-67.0,26.6],[-66.0,26.6]]
+      },
+      "properties": {
+        "name":"Line15"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-71.0,26.9],[-70.0, 26.9],[-69.0, 26.9],[-68.0, 26.9],[-67.0, 26.9],[-66.0, 26.9]]
+      },
+      "properties": {
+        "name":"Line16"
+      }
+    }
+  ]
+}
