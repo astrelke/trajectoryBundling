@@ -4,7 +4,7 @@ var geojson2mvt = require('../src');
 
 var json = JSON.parse(fs.readFileSync('simpleLines.geojson', "utf8"));
 var features = json.features;
-var d=-0.1;
+var d;
 var newFeatures = [];
 var newFeature;
 var id;
@@ -17,7 +17,8 @@ var decimalCounter=0.0;
 var min=[64666266609];	//Set min to a ridiculous number that can't be a actual coordinate
 for(var j=0; j<11;j++){
 	console.log("Level " + (10-j).toString());
-	d = d + 0.1
+	d = 1/(Math.pow(2,10-j));
+	console.log(d);
 	decimalCounter += 0.000001;
 	newFeatures = [];
 	counter=0;
@@ -72,7 +73,7 @@ function bundle(line1, line2,min){
 		if(line1[c1][0] < line2[c2][0]){
 			coordinates.push([line1[c1][0],y]);
 			c1++;
-		}else if(line1[c1][0] < line2[c2][0]){
+		}else if(line1[c1][0] > line2[c2][0]){
 			coordinates.push([line2[c2][0],y]);
 			c2++;
 		}else{
