@@ -7,8 +7,8 @@ json.features.forEach(function(feat){
 	T.push(feat.geometry.coordinates)
 });
 var result = TRACULUS(T);
-
 for(var i=0;i<result.length;i++){
+	console.log(result[i]);
 	feature = {"type":"Feature", "geometry":{"type":"LineString", "coordinates":result[i]}, "properties":{"name":0}};
 	features.push(feature);
 }
@@ -25,20 +25,19 @@ fs.writeFileSync(fileName, JSON.stringify(newJson));
 function TRACULUS(T){
 	/*Variables
 		Arrays (
-			L: Partitioned line segment
 			D: Set of line segments
 			O: Set of clustered lines
 			R: Representative Trajectory
 		)
 		Integers (i: Trajectory Index)
 	*/
-	var L=[],D=[],O=[],R=[]; var i =0;
+	var D=[],O=[],R=[]; var i =0;
 	
 	/* Partition Phase */
 	//01: Loop through each trajectory tr
 	T.forEach(function(tr) {
 		//02 & 03: Get a set L of line segments and Accumulate L into a set D
-		L = ApproximateTrajectoryParitioning(tr,i,D); 
+		ApproximateTrajectoryParitioning(tr,i,D); 
 		i++;
 	});	
 	
