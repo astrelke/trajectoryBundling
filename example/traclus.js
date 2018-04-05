@@ -2,18 +2,18 @@
 var fs = require('fs');
 var T = [], features=[];
 var feature;
-var json = JSON.parse(fs.readFileSync('T.geojson', "utf8"));
+var json = JSON.parse(fs.readFileSync('BestTrack.geojson', "utf8"));
 json.features.forEach(function(feat){
 	T.push(feat.geometry.coordinates)
 });
 var result = TRACULUS(T);
 for(var i=0;i<result.length;i++){
-	console.log(result[i]);
+	console.log("Result : " + result[i]);
 	feature = {"type":"Feature", "geometry":{"type":"LineString", "coordinates":result[i]}, "properties":{"name":0}};
 	features.push(feature);
 }
 var newJson = {"type":"FeatureCollection","features":features};
-var fileName = 'TX.geojson';
+var fileName = 'BestTrack_2.geojson';
 fs.writeFileSync(fileName, JSON.stringify(newJson));
 
 
@@ -35,22 +35,33 @@ function TRACULUS(T){
 	
 	/* Partition Phase */
 	//01: Loop through each trajectory tr
+	console.log("Paritioning Phase Started");
 	T.forEach(function(tr) {
 		//02 & 03: Get a set L of line segments and Accumulate L into a set D
 		ApproximateTrajectoryParitioning(tr,i,D); 
+		console.log("Segment Group: " + i.toString());
 		i++;
 	});	
+	console.log("Paritioning Phase Complete");
 	
 	/* Grouping Phase */
+	console.log("Grouping Phase Started");
 	//04: Get a set O of clusters
-	O = LineSegmentClustering(D,5,1,1,T);
+	O = LineSegmentClustering(D,10,3,3,T);
+	console.log("Clusters Generated");
 	//05: Loop through each cluster c
+	i=1;
 	O.forEach(function(C) {
 		//06: Get a represenative trajectory
-		R.push(RepresentativeTrajectoryGeneration(C,2,0.15));
-	});
+		var RTR = RepresentativeTrajectoryGeneration(C,3,0.3);
+		//console.log(RTR);
+		R.push(RTR);
+		console.log("Representative Trajectory: " + i.toString());
+		i++;
+	}); 
+	//R = RepresentativeTrajectoryGeneration(O[0],6,0.3, R);
+	console.log("Grouping Phase Complete");
 	return R;
-	
 }
 
 /* Approximate Trajectory Paritioning
@@ -222,20 +233,30 @@ function RepresentativeTrajectoryGeneration(C,MinLns,Y){
 	var i=0, j=0,pNum=0;
 	var x1=0.0,x2=0.0,y1=0.0,y2=0.0,angle,diff,xPrev=64666266609.0,y=0.0;
 	var lineIntersection = require('line-intersection');
-		
+	var v3;
+	
 	//Compute average direction vector V
 	C.forEach(function(v){
 		x1 += v.L[0][0]; x2 += v.L[1][0]; y1 += v.L[0][1]; y2 += v.L[1][1];
 	});
-	var R=[];
+	//var R=[];
 	V = [[x1/C.length,y1/C.length],[x2/C.length,y2/C.length]];
+	//R.push(V);
 	//Calculate angle in which to rotate X axis
 	angle = angleBetween2Lines(V[0],[V[1][0],V[0][1]],V[0],V[1]);
+/* 	console.log(angle);
+	var axis = [[-200,0],[200,0]];
+	R.push(axis);
+	var newaxis = rotateMatrix(axis,angle);
+	R.push(newaxis); */
 	/*X'-value denotes the coordinate of the X' axis */
 	C.forEach(function(v){
 		//Rotate vector and add to rotated cluster C2
-		v2 = rotateVector(v,-angle);
-		R.push(v2.L);
+		//R.push(v.L);
+		v2 = rotateVector(v,angle);
+		//R.push(v2.L)
+		//v3 = rotateVector(v,angle);
+		//R.push(v3.L);
 		C2.push(v2);
 		//If end point is before start point on X'-axis, swap points
 		if(v2.L[1][0] < v2.L[0][0]) { v2.L = [v2.L[1],v2.L[0]];}
@@ -270,10 +291,10 @@ function RepresentativeTrajectoryGeneration(C,MinLns,Y){
 		});
 		if(pNum >= MinLns){
 			//Compute diff
-			if(xPrev == 64666266609.0) diff = 0.0;
+			if(xPrev == 64666266609.0) diff = Y+1;	//Hack conditional statement below
 			else diff = p[0] - xPrev;
-			xPrev = p[0];
 			if(diff >= Y){
+				xPrev = p[0];
 				//Compute the average coordinate pAvg2
 				intersects.forEach(function(intxn){ y += intxn[1]; });
 				pAvg2 = [p[0], y/intersects.length];
@@ -480,9 +501,9 @@ function rotateVector(v,angle){
 	var radians = (Math.PI / 180) * -angle;
 	x1 = v.L[0][0]*Math.cos(radians) - v.L[0][1]*Math.sin(radians); 
 	x2 = v.L[1][0]*Math.cos(radians) - v.L[1][1]*Math.sin(radians); 
-	y1 = v.L[0][0]*Math.sin(radians) - v.L[0][1]*Math.cos(radians); 
-	y2 = v.L[1][0]*Math.sin(radians) - v.L[1][1]*Math.cos(radians);
-	return {"L":[[x1,-y1],[x2,-y2]],"trajectory":v.trajectory,"clusterId":v.clusterId,"classified":v.classified,"noise":v.noise,"index":v.index};
+	y1 = v.L[0][0]*Math.sin(radians) + v.L[0][1]*Math.cos(radians); 
+	y2 = v.L[1][0]*Math.sin(radians) + v.L[1][1]*Math.cos(radians);
+	return {"L":[[x1,y1],[x2,y2]],"trajectory":v.trajectory,"clusterId":v.clusterId,"classified":v.classified,"noise":v.noise,"index":v.index};
 }
 /*Rotate matrix counter-clockwise*/
 function rotateMatrix(m,angle){
@@ -491,16 +512,16 @@ function rotateMatrix(m,angle){
 	var radians = (Math.PI / 180) * -angle;
 	x1 = m[0][0]*Math.cos(radians) - m[0][1]*Math.sin(radians); 
 	x2 = m[1][0]*Math.cos(radians) - m[1][1]*Math.sin(radians); 
-	y1 = m[0][0]*Math.sin(radians) - m[0][1]*Math.cos(radians); 
-	y2 = m[1][0]*Math.sin(radians) - m[1][1]*Math.cos(radians);
-	return [[x1,-y1],[x2,-y2]];
+	y1 = m[0][0]*Math.sin(radians) + m[0][1]*Math.cos(radians); 
+	y2 = m[1][0]*Math.sin(radians) + m[1][1]*Math.cos(radians);
+	return [[x1,y1],[x2,y2]];
 }
 
-/*Rotate point counter-clockwise*/
+/*Rotate point clockwise*/
 function rotatePoint(p,angle){
 	var x,y;
 	var radians = (Math.PI / 180) * -angle,
-	x = p[0]*Math.cos(radians) - p[1]*Math.sin(radians); 
-	y = p[0]*Math.sin(radians) - p[1]*Math.cos(radians);
-	return [x,-y];
+	x = p[0]*Math.cos(radians) + p[1]*Math.sin(radians); 
+	y = -(p[0]*Math.sin(radians)) + p[1]*Math.cos(radians);
+	return [x,y];
 }
