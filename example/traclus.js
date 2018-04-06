@@ -2,7 +2,8 @@
 var fs = require('fs');
 var T = [], features=[];
 var feature;
-var json = JSON.parse(fs.readFileSync('BestTrack.geojson', "utf8"));
+//INPUT GEOJSON
+var json = JSON.parse(fs.readFileSync('BestTrackAtlantic.geojson', "utf8"));
 json.features.forEach(function(feat){
 	T.push(feat.geometry.coordinates)
 });
@@ -12,7 +13,8 @@ for(var i=0;i<result.length;i++){
 	feature = {"type":"Feature", "geometry":{"type":"LineString", "coordinates":result[i]}, "properties":{"name":0}};
 	features.push(feature);
 }
-var newJson = {"type":"FeatureCollection","features":features};
+var newJson = {"type":"FeatureCollection","features":features};4
+//OUTPUT GEOJSON
 var fileName = 'BestTrack_2.geojson';
 fs.writeFileSync(fileName, JSON.stringify(newJson));
 
@@ -47,13 +49,13 @@ function TRACULUS(T){
 	/* Grouping Phase */
 	console.log("Grouping Phase Started");
 	//04: Get a set O of clusters
-	O = LineSegmentClustering(D,10,3,3,T);
+	O = LineSegmentClustering(D,10,5,5,T);
 	console.log("Clusters Generated");
 	//05: Loop through each cluster c
 	i=1;
 	O.forEach(function(C) {
 		//06: Get a represenative trajectory
-		var RTR = RepresentativeTrajectoryGeneration(C,3,0.3);
+		var RTR = RepresentativeTrajectoryGeneration(C,5,1);
 		//console.log(RTR);
 		R.push(RTR);
 		console.log("Representative Trajectory: " + i.toString());
