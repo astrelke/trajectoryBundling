@@ -11,19 +11,21 @@ var fs = require('fs');
 var T = [], features=[];
 var feature;
 //INPUT GEOJSON
-var json = JSON.parse(fs.readFileSync('BestTrackAtlantic.geojson', "utf8"));
+var json = JSON.parse(fs.readFileSync('BestTrackAtlantic2.geojson', "utf8"));
 json.features.forEach(function(feat){
-	T.push(feat.geometry.coordinates)
+	T.push({"coordinates":feat.geometry.coordinates,"density":feat.properties.density})
 });
 var result = TRACULUS(T);
 for(var i=0;i<result.length;i++){
-		feature = {"type":"Feature", "geometry":{"type":"LineString", "coordinates":result[i]}, "properties":{"name":0}};
+		console.log(result[i].coordinates);
+		console.log();
+		feature = {"type":"Feature", "geometry":{"type":"LineString", "coordinates":result[i].coordinates}, "properties":{"name":i,"density":result[i].density}};
 		features.push(feature);
 }
 console.log(result.length);
 //OUTPUT GEOJSON
 var newJson = {"type":"FeatureCollection","features":features};
-var fileName = 'BestTrack_2.geojson';
+var fileName = 'BestTrackAtlantic2.geojson';
 fs.writeFileSync(fileName, JSON.stringify(newJson));
 
 /* TRACULUS
@@ -50,19 +52,18 @@ function TRACULUS(T){
 		console.log("Segment Group: " + i.toString());
 		i++;
 	});	
-	console.log(D.length);
 	console.log("Paritioning Phase Complete");
 	/* Grouping Phase */
 	console.log("Grouping Phase Started");
 	//04: Get a set O of clusters
-	O = LineSegmentClustering(D,30,6,6,T);
+	O = LineSegmentClustering(D,5.48,2.45,2.45);
 	console.log("Clusters Generated");
 	//05: Loop through each cluster c
 	i=1;
 	O.forEach(function(C) {
 		//06: Get a represenative trajectory
-		var RTR = RepresentativeTrajectoryGeneration(C,6,4);
-		if(RTR.length>0){
+		var RTR = RepresentativeTrajectoryGeneration(C,2.45,1.63);
+		if(RTR.coordinates.length>0){
 			R.push(RTR);
 			console.log("Representative Trajectory: " + i.toString());
 			i++;
@@ -92,38 +93,38 @@ function ApproximateTrajectoryParitioning(tr,i,D,costAdv,MinLns){
 		)
 	*/
 	var line=[]; var startIndex=0,len=1,currIndex; var costPar=0,costNopar=0;
-	line.push(tr[0]); //The starting point
-	while(startIndex+len < tr.length){
+	line.push(tr.coordinates[0]); //The starting point
+	while(startIndex+len < tr.coordinates.length){
 		currIndex = startIndex+len;
-		if(getDistance(line[0],tr[currIndex-1]) < MinLns) {
+		if(getDistance(line[0],tr.coordinates[currIndex-1]) < MinLns) {
 			len += 1;
 			continue;
 		}
-		costPar = MDLpar(tr, startIndex, currIndex);
-		costNopar += MDLnopar(tr, currIndex-1, currIndex);
+		costPar = MDLpar(tr.coordinates, startIndex, currIndex);
+		costNopar += MDLnopar(tr.coordinates, currIndex-1, currIndex);
 		/* check if partitioning at the current point makes
 		the MDL cost larger than not partitioning*/
 		if(costPar > costNopar+costAdv){
 			/*partition at the previous point*/
-			line.push(tr[currIndex-1]);
-			D.push({"L":line,"index": D.length,"trajectory":i,"clusterId":0,"classified":false,"noise":false});
+			line.push(tr.coordinates[currIndex-1]);
+			D.push({"L":line,"index": D.length,"trajectory":i,"clusterId":0,"classified":false,"noise":false,"weight":tr.density});
 			line = [];
-			line.push(tr[currIndex-1]);
+			line.push(tr.coordinates[currIndex-1]);
 			startIndex = currIndex - 1;
 			len = 1;
 			costPar=0;
 			costNopar=0;
 		} else len += 1;
 	}
-	line.push(tr[tr.length-1]);
-	D.push({"L":line,"index": D.length, "trajectory":i,"clusterId":0,"classified":false,"noise":false});
+	line.push(tr.coordinates[tr.coordinates.length-1]);
+	D.push({"L":line,"index": D.length, "trajectory":i,"clusterId":0,"classified":false,"noise":false,"weight":tr.density});
 }
 
 /* Line Segment Clustering
 	Inputs (D: Set of line segments, e:epslion value, MinLns: Minimum number of neighbors in cluster, MinClus: Min number of trajectories in cluster, T: Trajectories)
 	Output (O: Set of clusteres) 
 */
-function LineSegmentClustering(D,e,MinLns,MinClus,T){
+function LineSegmentClustering(D,e,MinLns,MinClus){
 	/*Variables
 		Arrays (
 			tempD: Temporary place holder for D
@@ -160,7 +161,7 @@ function LineSegmentClustering(D,e,MinLns,MinClus,T){
 	C.forEach(function(c){
 		/*Calculate trajectory cardinality and compare with threshold
 		a threshold other than MinLns can be used*/
-		if(PTR(c,T).length > MinClus) O.push(c);	//Add C to set of clusters O
+		if(PTR(c) > MinClus) O.push(c);	//Add C to set of clusters O
 	});
 	return O;
 }
@@ -233,17 +234,19 @@ function RepresentativeTrajectoryGeneration(C,MinLns,Y){
 			y: Sum of intersecting points Y'-values
 		)
 	*/
-	var V,v2,C2=[],P=[],sweepLine,intersects,pAvg,pAvg2,RTR=[];
+	var V,v2,C2=[],P=[],sweepLine,intersects,pAvg,pAvg2,RTR={"coordinates":[],"density":0};
 	var intersect;
 	var i=0, j=0,pNum=0,lineNum=0,clusterNum=0;
 	var x1=0.0,x2=0.0,y1=0.0,y2=0.0,angle,diff,xPrev=0.0,y=0.0;
 	var lineIntersection = require('line-intersection');
+	var density=0;
 	
 	//Compute average direction vector V
 	C.forEach(function(v){
-		x1 += v.L[0][0]; x2 += v.L[1][0]; y1 += v.L[0][1]; y2 += v.L[1][1];
+		x1 += v.L[0][0]*v.weight; x2 += v.L[1][0]*v.weight; y1 += v.L[0][1]*v.weight; y2 += v.L[1][1]*v.weight;
+		density += v.weight;
 	});
-	V = [[x1/C.length,y1/C.length],[x2/C.length,y2/C.length]];
+	V = [[x1/density,y1/density],[x2/density,y2/density]];
 	//Calculate angle in which to rotate X axis
 	angle = angleBetween2Lines(V[0],[V[1][0],V[0][1]],V[0],V[1]);
 	//X'-value denotes the coordinate of the X' axis
@@ -271,7 +274,6 @@ function RepresentativeTrajectoryGeneration(C,MinLns,Y){
 		lineNum++;
 	});
 	i=0;
-	
 	P.forEach(function(p){
 		//Count pNum using a sweep line (or plane) 
 		sweepLine = [[p[0],p[1]+20],[p[0],p[1]-20]];
@@ -282,7 +284,7 @@ function RepresentativeTrajectoryGeneration(C,MinLns,Y){
 					{x: sweepLine[0][0], y: sweepLine[0][1]}, {x: sweepLine[1][0], y: sweepLine[1][1]}]);
 				pNum++;
 				if(!(isNaN(intersect.x) || isNaN(intersect.y)))		//Check if intersection exisits 
-					intersects.push([intersect.x,intersect.y]);
+					intersects.push({"coordinate":[intersect.x,intersect.y],"weight":v.weight});
 			}
 		});
 		if(pNum >= MinLns){
@@ -291,19 +293,22 @@ function RepresentativeTrajectoryGeneration(C,MinLns,Y){
 			if(diff >= Y){
 				xPrev = p[0];
 				//Compute the average coordinate pAvg2
-				intersects.forEach(function(intxn){ y += intxn[1]; });
-				pAvg2 = [p[0], y/intersects.length];
+				intersects.forEach(function(intxn){ 
+					y += intxn.coordinate[1]*intxn.weight; 
+					density+=intxn.weight;
+				});
+				pAvg2 = [p[0], y/density];
 				//Undo the rotation and get the point pAvg2
 				pAvg = rotatePoint(pAvg2,angle);
 				//Append Pavg to the end of RTRi
-				RTR.push(pAvg);
+				RTR.coordinates.push(pAvg);
 			}
 		}
 		//Reset values
 		i++;
-		y=0.0; pNum=0;
+		y=0.0; pNum=0,density=0;
 	});	
-	console.log();
+	RTR.density = C.length;
 	return RTR;
 }
 
@@ -339,11 +344,12 @@ function MDLnopar(tr, startIndex, currIndex){
 	return Math.log2(d);
 }
 /*Participating Trajectories Function*/
-function PTR(C,T){
-	var ptr = [], repeat=[];
+function PTR(C){
+	var repeat=[];
+	var ptr=0;
 	for(var i=0;i<C.length;i++){
 		if(!repeat.includes(C[i].trajectory)){
-			ptr.push(T[C[i].trajectory]);
+			ptr++;
 			repeat.push(C[i].trajectory);
 		}
 	}
@@ -521,7 +527,7 @@ function rotateVector(v,angle){
 	x2 = v.L[1][0]*Math.cos(radians) - v.L[1][1]*Math.sin(radians); 
 	y1 = v.L[0][0]*Math.sin(radians) + v.L[0][1]*Math.cos(radians); 
 	y2 = v.L[1][0]*Math.sin(radians) + v.L[1][1]*Math.cos(radians);
-	return {"L":[[x1,y1],[x2,y2]],"trajectory":v.trajectory,"clusterId":v.clusterId,"classified":v.classified,"noise":v.noise};
+	return {"L":[[x1,y1],[x2,y2]],"trajectory":v.trajectory,"clusterId":v.clusterId,"classified":v.classified,"noise":v.noise,"weight":v.weight};
 }
 /*Rotate matrix counter-clockwise*/
 function rotateMatrix(m,angle){
