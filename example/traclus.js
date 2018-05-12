@@ -2,79 +2,134 @@
 	First introduced by Jae-Gil Lee, Jiawei Han, and Kyu-Young Whang
 	http://hanj.cs.illinois.edu/pdf/sigmod07_jglee.pdf
 */
+require('process');
 
 //Global Variables
 var coefficient;
 var projPoint;
-//Setup Variables
-var fs = require('fs');
-var T = [], features=[];
-var feature;
-//INPUT GEOJSON
-var json = JSON.parse(fs.readFileSync('BestTrackAtlantic2.geojson', "utf8"));
-json.features.forEach(function(feat){
-	T.push({"coordinates":feat.geometry.coordinates,"density":feat.properties.density})
-});
-var result = TRACULUS(T);
-for(var i=0;i<result.length;i++){
-		console.log(result[i].coordinates);
-		console.log();
-		feature = {"type":"Feature", "geometry":{"type":"LineString", "coordinates":result[i].coordinates}, "properties":{"name":i,"density":result[i].density}};
-		features.push(feature);
+//Get command line arguments
+var myArgs=[];
+if(process.argv.length < 7){
+	console.log("Please enter the following parameters: path_to_geojson epslion MinLns smoothingParameter levels"); 
+	process.exit();
 }
-console.log(result.length);
-//OUTPUT GEOJSON
-var newJson = {"type":"FeatureCollection","features":features};
-var fileName = 'BestTrackAtlantic2.geojson';
-fs.writeFileSync(fileName, JSON.stringify(newJson));
+for(var i=2;i<process.argv.length;i++){
+	myArgs.push(process.argv[i]);
+}
+init();
+
+/*Setup Function*/
+function init(){
+	var fs = require('fs');
+	var T, features,result;
+	var feature,json,newJson;
+	var e,Y;
+	var start = true;
+	var MinLns;
+	var fileName;
+	//Bundle trajectories from bottom level up
+	for(var level=parseInt(myArgs[4]); level >=0; level--){
+		console.log("Level: " + level);
+		T=[];
+		features=[];
+		//Determine input file
+		if(start){
+			json = JSON.parse(fs.readFileSync(myArgs[0], "utf8"));
+			json.features.forEach(function(feat){
+				T.push({"coordinates":feat.geometry.coordinates,"density":feat.properties.density})
+			});
+		} else {
+			json = JSON.parse(fs.readFileSync(insertFileNumber(myArgs[0],level+1), "utf8"));
+			json.features.forEach(function(feat){
+				T.push({"coordinates":feat.geometry.coordinates,"density":feat.properties.density})
+			});
+		}
+		//Calculate parameters for current level
+		e = parseFloat(myArgs[1]) / Math.pow(2,level);
+		MinLns = Math.floor(parseInt(myArgs[2]) / Math.pow(2,level));
+		Y = MinLns / 1.5;
+		//Run TRACLUS 
+		result = TRACULUS(T,e,MinLns,Y);
+		//Create array of GEOJSON feature objects
+		for(var i=0;i<result.length;i++){
+			//console.log(result[i].coordinates);
+			//console.log();
+			feature = {"type":"Feature", "geometry":{"type":"LineString", "coordinates":result[i].coordinates}, 
+				"properties":{"name":i,"density":result[i].density,"weight":result[i].weight}};
+			features.push(feature);
+		}
+		//Output GEOJSON
+		newJson = {"type":"FeatureCollection","features":features};
+		fileName = insertFileNumber(myArgs[0],level);
+		fs.writeFileSync(fileName, JSON.stringify(newJson));
+		start = false;
+	}
+}
+
 
 /* TRACULUS
 	Inputs (T: Trajectories)
 	Output (R: Representative Trajectory) 
 */
-function TRACULUS(T){
+function TRACULUS(T,e,MinLns,Y){
 	/*Variables
 		Arrays (
 			D: Set of line segments
 			O: Set of clustered lines
-			R: Representative Trajectory
+			R: Array of Representative Trajectories
 		)
+		Objects (RTR: Representative Trajectory)
 		Integers (i: Trajectory Index)
 	*/
-	var D=[],O=[],R=[]; var i =0;
-	
+	var D=[],O=[],R=[]; var i =0; var RTR;
 	/* Partition Phase */
 	//01: Loop through each trajectory tr
-	console.log("Paritioning Phase Started");
+	//console.log("Paritioning Phase Started");
 	T.forEach(function(tr) {
 		//02 & 03: Get a set L of line segments and Accumulate L into a set D
 		ApproximateTrajectoryParitioning(tr,i,D,25,50); 
-		console.log("Segment Group: " + i.toString());
 		i++;
 	});	
-	console.log("Paritioning Phase Complete");
+	//console.log("Paritioning Phase Complete");
 	/* Grouping Phase */
-	console.log("Grouping Phase Started");
+	//console.log("Grouping Phase Started");
 	//04: Get a set O of clusters
-	O = LineSegmentClustering(D,5.48,2.45,2.45);
-	console.log("Clusters Generated");
+	O = LineSegmentClustering(D,e,MinLns);
+	//console.log("Clusters Generated");
 	//05: Loop through each cluster c
 	i=1;
+	//var maxDensity=0;
 	O.forEach(function(C) {
 		//06: Get a represenative trajectory
-		var RTR = RepresentativeTrajectoryGeneration(C,2.45,1.63);
-		if(RTR.coordinates.length>0){
+		RTR = RepresentativeTrajectoryGeneration(C,MinLns,Y);
+		if(RTR.coordinates.length>1){
 			R.push(RTR);
-			console.log("Representative Trajectory: " + i.toString());
+			//console.log("Representative Trajectory: " + i.toString());
 			i++;
+			//if(RTR.density > maxDensity) maxDensity = RTR.density;
 		}
-	}); 	
-	console.log("Grouping Phase Complete");
+	});
+	/*Calculate weight of represenative trajectory. 
+	* Unlike density, weight is used as the line width value
+	*/
+	R.forEach(function(rtr){
+		if(rtr.density > 1000){
+			rtr.weight = 5.0;
+		} else {
+			rtr.weight = rtr.density/250 + 1.0;
+		}
+	});
+	//console.log("Grouping Phase Complete");
 	return R;
 }
 
 /* Approximate Trajectory Paritioning
-	Inputs (tr: Trajectory, i: Trajectory Index, D: Set of line segments,costAdv: Used to prevent oversimplification of line segment partitioning, MinLns: Minimum length of paritiooned line segment)
+	Inputs 
+		(tr: Trajectory, 
+		i: Trajectory Index, 
+		D: Set of line segments,
+		costAdv: Used to prevent oversimplification of line segment partitioning, 
+		MinLns: Minimum length of paritioned line segment)
 	Output (D: Set of line segments) 
 */
 function ApproximateTrajectoryParitioning(tr,i,D,costAdv,MinLns){
@@ -94,8 +149,10 @@ function ApproximateTrajectoryParitioning(tr,i,D,costAdv,MinLns){
 	*/
 	var line=[]; var startIndex=0,len=1,currIndex; var costPar=0,costNopar=0;
 	line.push(tr.coordinates[0]); //The starting point
+	//While there exist a partitioning in the line segment
 	while(startIndex+len < tr.coordinates.length){
 		currIndex = startIndex+len;
+		//Validate length of partioned line segment
 		if(getDistance(line[0],tr.coordinates[currIndex-1]) < MinLns) {
 			len += 1;
 			continue;
@@ -105,9 +162,9 @@ function ApproximateTrajectoryParitioning(tr,i,D,costAdv,MinLns){
 		/* check if partitioning at the current point makes
 		the MDL cost larger than not partitioning*/
 		if(costPar > costNopar+costAdv){
-			/*partition at the previous point*/
+			//partition at the previous point
 			line.push(tr.coordinates[currIndex-1]);
-			D.push({"L":line,"index": D.length,"trajectory":i,"clusterId":0,"classified":false,"noise":false,"weight":tr.density});
+			D.push({"L":line,"index": D.length,"trajectory":i,"clusterId":0,"classified":false,"noise":false,"density":tr.density});
 			line = [];
 			line.push(tr.coordinates[currIndex-1]);
 			startIndex = currIndex - 1;
@@ -117,14 +174,17 @@ function ApproximateTrajectoryParitioning(tr,i,D,costAdv,MinLns){
 		} else len += 1;
 	}
 	line.push(tr.coordinates[tr.coordinates.length-1]);
-	D.push({"L":line,"index": D.length, "trajectory":i,"clusterId":0,"classified":false,"noise":false,"weight":tr.density});
+	D.push({"L":line,"index": D.length, "trajectory":i,"clusterId":0,"classified":false,"noise":false,"density":tr.density});
 }
 
 /* Line Segment Clustering
-	Inputs (D: Set of line segments, e:epslion value, MinLns: Minimum number of neighbors in cluster, MinClus: Min number of trajectories in cluster, T: Trajectories)
+	Inputs 
+		(D: Set of line segments, 
+		e:epslion value, 
+		MinLns: Minimum number of neighbors in cluster, MinClus: Min number of trajectories in cluster)
 	Output (O: Set of clusteres) 
 */
-function LineSegmentClustering(D,e,MinLns,MinClus){
+function LineSegmentClustering(D,e,MinLns){
 	/*Variables
 		Arrays (
 			tempD: Temporary place holder for D
@@ -145,7 +205,7 @@ function LineSegmentClustering(D,e,MinLns,MinClus){
 			//Compute N(L) and predict clusters, where L=D[i]
 			tempD = D; tempC = C; 
 			N = Ne1(tempD,i,e,tempC,clusterId);
-			if(N.length >= MinLns){
+			if(N.density >= MinLns){
 				//Assign all points in neighborhood to cluster
 				D = tempD;
 				C = tempC;
@@ -161,27 +221,31 @@ function LineSegmentClustering(D,e,MinLns,MinClus){
 	C.forEach(function(c){
 		/*Calculate trajectory cardinality and compare with threshold
 		a threshold other than MinLns can be used*/
-		if(PTR(c) > MinClus) O.push(c);	//Add C to set of clusters O
+		if(PTR(c) > MinLns) O.push(c);	//Add C to set of clusters O
 	});
 	return O;
 }
 
 /*Compute a Density-Connected Set and Insert New Points into Respective Cluster 
-	Inputs (Q: Queue of neighboring points to be expanded upon, D: Set of line segments, C: Set of clusters, e: epslion value, MinLns: Minimum number of vertical line intersections)
-	Output () 
+	Inputs 
+		(Q: Queue of neighboring points to be expanded upon, 
+		D: Set of line segments, 
+		C: Set of clusters,
+		clusterId: id of cluster
+		e: epslion value, 
+		MinLns: Minimum number of vertical line intersections)
+	Output (C: Expanded set of clusters) 
 */
 function ExpandCluster(Q,D,C,clusterId,e,MinLns){
 	/*Variables
-		Arrays (
-			N: Set of new found neighboring points
-		)
+		Arrays (N: Set of new found neighboring points)
 	*/
 	var N;
 	while(Q.length > 0){
 		//Compute N(L), where L=Q[0]
 		N = Ne2(Q,0,e);
-		if(N.length >= MinLns){
-			N.forEach(function(X){		//For each neighboring line X
+		if(N.density >= MinLns){
+			N.lines.forEach(function(X){		//For each neighboring line X
 				//Assign clusterId to X
 				if(!X.classified || X.noise){
 						if(!X.classified) Q.push(X);	//Insert X into queue Q
@@ -199,7 +263,10 @@ function ExpandCluster(Q,D,C,clusterId,e,MinLns){
 
 
 /*Representative Trajectory Generation
-	Inputs (C: Set of clustered line segments, MinLns: Minimum number of intersections allowed for point to be added to represenative trajectory, Y=Smoothing value)
+	Inputs 
+		(C: Set of clustered line segments, 
+		MinLns: Minimum number of intersections allowed for point to be added to represenative trajectory, 
+		Y=Smoothing value)
 	Output (RTR: A representative trajectory) 
 */
 function RepresentativeTrajectoryGeneration(C,MinLns,Y){
@@ -222,6 +289,7 @@ function RepresentativeTrajectoryGeneration(C,MinLns,Y){
 			i: Index specifying location of point in P
 			j: Loop counter
 			pNum: The number of line segments that contains the X'-value of the point p
+			density: density of clustered line segments
 		)
 		Floats(
 			x1: Sum of starting point x-values
@@ -236,68 +304,71 @@ function RepresentativeTrajectoryGeneration(C,MinLns,Y){
 	*/
 	var V,v2,C2=[],P=[],sweepLine,intersects,pAvg,pAvg2,RTR={"coordinates":[],"density":0};
 	var intersect;
-	var i=0, j=0,pNum=0,lineNum=0,clusterNum=0;
+	var i=0, j=0,pNum=0,density=0;
 	var x1=0.0,x2=0.0,y1=0.0,y2=0.0,angle,diff,xPrev=0.0,y=0.0;
 	var lineIntersection = require('line-intersection');
-	var density=0;
 	
 	//Compute average direction vector V
 	C.forEach(function(v){
-		x1 += v.L[0][0]*v.weight; x2 += v.L[1][0]*v.weight; y1 += v.L[0][1]*v.weight; y2 += v.L[1][1]*v.weight;
-		density += v.weight;
+		x1 += v.L[0][0]*v.density; x2 += v.L[1][0]*v.density; y1 += v.L[0][1]*v.density; y2 += v.L[1][1]*v.density;
+		density += v.density;
 	});
 	V = [[x1/density,y1/density],[x2/density,y2/density]];
+	RTR.density = density;
 	//Calculate angle in which to rotate X axis
 	angle = angleBetween2Lines(V[0],[V[1][0],V[0][1]],V[0],V[1]);
 	//X'-value denotes the coordinate of the X' axis
+	var p0;
 	C.forEach(function(v){
 		//Rotate vector and add to rotated cluster C2
 		v2 = rotateVector(v,angle);
 		C2.push(v2);
 		//If end point is before start point on X'-axis, swap points
-		if(v2.L[1][0] < v2.L[0][0]) { v2.L = [v2.L[1],v2.L[0]];}
+		if(v2.L[1][0] < v2.L[0][0]) { p0 = [v2.L[1],v2.L[0]];}
+		else { p0 = [v2.L[0], v2.L[1]] }
 		//Sort the points in the set P by their X'-values
 		while(i <= P.length && j < 2){
 			if(i==P.length){
-				if(j==0){ P.push(v2.L[0]); P.push(v2.L[1]); } 	//Push both points 
-				else if(j==1) P.push(v2.L[1]);					//Push second point
+				if(j==0){ P.push(p0[0]); P.push(p0[1]); } 	//Push both points 
+				else if(j==1) P.push(p0[1]);					//Push second point
 				else console.log("ERROR");						//Error
 				j=2;
 			}else{
-				if(v2.L[j][0] < P[i][0]){ P.splice(i, 0, v2.L[j]); j++; }	//Append point in order of its X'-axis position
+				if(v2.L[j][0] < P[i][0]){ P.splice(i, 0, p0[j]); j++; }	//Append point in order of its X'-axis position
 			}
 			i++;
 		}
 		//Reset indicies
 		i=0; j=0;
-		//Increment lineNum
-		lineNum++;
 	});
 	i=0;
 	P.forEach(function(p){
 		//Count pNum using a sweep line (or plane) 
-		sweepLine = [[p[0],p[1]+20],[p[0],p[1]-20]];
+		sweepLine = [[p[0],85],[p[0],-85]];
 		intersects=[];
 		C2.forEach(function(v){
-			if((v.L[0][0] <= sweepLine[0][0] && sweepLine[0][0] <= v.L[1][0]) || (v.L[0][0] >= sweepLine[0][0] && sweepLine[0][0] >= v.L[1][0])){
+			if((v.L[0][0] <= p[0] && v.L[1][0] >= p[0]) || (v.L[0][0] >= p[0] && v.L[1][0] <= p[0])){
 				intersect = lineIntersection.findIntersection([{x: v.L[0][0], y: v.L[0][1]}, {x: v.L[1][0], y: v.L[1][1]}, 
 					{x: sweepLine[0][0], y: sweepLine[0][1]}, {x: sweepLine[1][0], y: sweepLine[1][1]}]);
-				pNum++;
-				if(!(isNaN(intersect.x) || isNaN(intersect.y)))		//Check if intersection exisits 
-					intersects.push({"coordinate":[intersect.x,intersect.y],"weight":v.weight});
+				if(!(isNaN(intersect.x) || isNaN(intersect.y)))	{	//Check if intersection exisits 
+					pNum+=v.density;
+					intersects.push({"coordinate":[intersect.x,intersect.y],"density":v.density});
+				}
 			}
 		});
-		if(pNum >= MinLns){
+		//console.log(intersects.length);
+		if(pNum >= MinLns && pNum > 0){
 			//Compute diff
 			diff = Math.abs(p[0] - xPrev);
 			if(diff >= Y){
 				xPrev = p[0];
 				//Compute the average coordinate pAvg2
 				intersects.forEach(function(intxn){ 
-					y += intxn.coordinate[1]*intxn.weight; 
-					density+=intxn.weight;
+					y += intxn.coordinate[1]; 
+					density+=intxn.density;
 				});
-				pAvg2 = [p[0], y/density];
+				pAvg2 = [p[0], y/intersects.length];
+				console.log(pAvg2);
 				//Undo the rotation and get the point pAvg2
 				pAvg = rotatePoint(pAvg2,angle);
 				//Append Pavg to the end of RTRi
@@ -308,13 +379,18 @@ function RepresentativeTrajectoryGeneration(C,MinLns,Y){
 		i++;
 		y=0.0; pNum=0,density=0;
 	});	
-	RTR.density = C.length;
 	return RTR;
 }
 
 /*
 	Utility Functions
 */
+/*Numbers output files*/
+function insertFileNumber(str,num){
+	var n = str.lastIndexOf(".");
+	if (n < 0) return str;
+	return str.substring(0,n) + "(" + num.toString() + ").geojson";
+}
 /*Get MDL cost with partition*/
 function MDLpar(tr, startIndex, currIndex){
 	var H=0, D_H=0;
@@ -349,7 +425,7 @@ function PTR(C){
 	var ptr=0;
 	for(var i=0;i<C.length;i++){
 		if(!repeat.includes(C[i].trajectory)){
-			ptr++;
+			ptr+=C[i].density;
 			repeat.push(C[i].trajectory);
 		}
 	}
@@ -477,7 +553,7 @@ function toDegrees(angle) {
 */
 /*ε-Neighborhood Function 1 - assigns lines to predicted cluster during computation*/
 function Ne1(D,index,e,C,clusterId){
-	var N = [];
+	var N = {"density":0,"lines":[]};
 	var stop=true;
 	C[clusterId] = [];
 	//Assign cluster id to L
@@ -496,7 +572,8 @@ function Ne1(D,index,e,C,clusterId){
 				D[i].classified = true;
 				D[i].noise = false;
 				C[clusterId].push(D[i]);
-				N.push(D[i]);
+				N.density += D[i].density;
+				N.lines.push(D[i]);
 			}
 		}
 	}
@@ -504,13 +581,16 @@ function Ne1(D,index,e,C,clusterId){
 }
 /*ε-Neighborhood Function 2 - Simple neighborhood function, no assigment of cluster*/
 function Ne2(D,index,e){
-	var N = [];
+	var N = {"density":0,"lines":[]};
 	for(var i=0; i<D.length; i++){
 		if(i != index && !D[i].classified){
 			//Get distance
 			var d = dist(D[index].L,D[i].L);
 			//Add line if distance is less than or equal to e
-			if(d <= e) N.push(D[i]);
+			if(d <= e){
+				N.density += D[i].density;
+				N.lines.push(D[i]);
+			}
 		}
 	}
 	return N;
@@ -527,7 +607,7 @@ function rotateVector(v,angle){
 	x2 = v.L[1][0]*Math.cos(radians) - v.L[1][1]*Math.sin(radians); 
 	y1 = v.L[0][0]*Math.sin(radians) + v.L[0][1]*Math.cos(radians); 
 	y2 = v.L[1][0]*Math.sin(radians) + v.L[1][1]*Math.cos(radians);
-	return {"L":[[x1,y1],[x2,y2]],"trajectory":v.trajectory,"clusterId":v.clusterId,"classified":v.classified,"noise":v.noise,"weight":v.weight};
+	return {"L":[[x1,y1],[x2,y2]],"trajectory":v.trajectory,"clusterId":v.clusterId,"classified":v.classified,"noise":v.noise,"density":v.density};
 }
 /*Rotate matrix counter-clockwise*/
 function rotateMatrix(m,angle){
