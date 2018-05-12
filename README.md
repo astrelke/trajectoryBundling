@@ -4,9 +4,9 @@ A Python and JavaScript pipeline that converts Automated Identification System (
 ## Dependencies 
 ### AIS Data
 *	Download AIS datasets from desired year: https://marinecadastre.gov/ais/. 
-* In "gdb2mvt", create a folder for each zone 01-19 (ex. Zone19)
+* In "trajectoryBundling", create a folder for each zone 01-19 (ex. Zone19)
 *	Move AIS geo-database (gdb) files to respective zone folders. 
-*	In "gdb2mvt/geojson2mvt/example/geojson", repeat the process of creating a folder for each zone 01-19. These folder will be used later to store the GEOJSON files once they have been created. 
+*	In "trajectoryBundling/example/geojson", repeat the process of creating a folder for each zone 01-19. These folder will be used later to store the GEOJSON files once they have been created. 
 
 ### Node.js
 *	Install latest version of Node.js: https://nodejs.org/en/download/.
@@ -41,12 +41,12 @@ conda install geojson
 ```
 ### Best Track Hurricane Dataset (optional)
 *	Download Best Track Atlantic and/or Pacific hurricane datasets as a .txt file: https://www.nhc.noaa.gov/data/#hurdat 
-*	Move .txt files to "gdb2mvt/geojson2mvt/example"
+*	Move .txt files to "trajectoryBundling/example"
 
 
 ## How to Run
 ### ais-to-parquet
-*	Open Anaconda command prompt and cd into "gdb2mvt" folder. 
+*	Open Anaconda command prompt and cd into "trajectoryBundling" folder. 
 *	For each gdb file you wish to convert into a set of parquet files, run python script "ais-to-parquet-in-mem.py".
 ```
 python ais-to-parquet-in-mem.py path-to-gdb.zip
@@ -56,26 +56,26 @@ python ais-to-parquet-in-mem.py path-to-gdb.zip
 * Note that only "Broadcast.parquet" is used when creating the GEOJSON in the next step.
 
 ### parquet2geojson
-*	Open Anaconda command prompt and cd into "gdb2mvt" folder.
+*	Open Anaconda command prompt and cd into "trajectoryBundling" folder.
 *	For each "Broadcast.parquet" file you wish to convert into a GEOJSON, run python script "data2geojson.py".
 ```
 python data2geojson.py path-to-parquet southBounds westBounds northBounds eastBounds
 ```
-* 'path-to-parquet' is the destination path to the "Broadcast.parqet" file. For example, “2014/Zone19/Zone19_2011_01/Broadcast.parquet”. 
+* 'path-to-parquet' is the destination path to the "Broadcast.parqet" file. For example, “Zone19/Zone19_2011_01/Broadcast.parquet”. 
 *	'southBounds', 'westBounds', 'northBounds', and 'eastBounds' are the boundary coordinates. Only coordinate points within this boundary will be included in the GEOJSON. For example, 40 -73 48 -65 (boundary for New England).
-*	Once the sciprt finishes executing, a GEOJSON file with the same name as the folder containing the parquet file will be created in its respective zone folder within the "geojson" directory (see AIS Data in Dependencies section above). For example, “gdb2mvt/geojson2mvt/example/geojson/Zone19/Zone19_2011_01.geojson”.
+*	Once the sciprt finishes executing, a GEOJSON file with the same name as the folder containing the parquet file will be created in its respective zone folder within the "geojson" directory (see AIS Data in Dependencies section above). For example, “trajectoryBundling/example/geojson/Zone19/Zone19_2011_01.geojson”.
 
 ### Hurricane Input Creator (Optional)
-* If you want to convert the Best Track hurricane datasets into a GEOJSON for testing TRACLUS using alternative data than the one provided by AIS, open the Node.js command prompt and cd into “gdb2mvt/geojson2mvt/example”.
-o	Open the file "hurricaneInputCreator.js" and specify and the location of the Best Track text file on line 3 as well as the name of the outputted GEOJSON file on line 65. 
-*	Once these changes have been made, run the script.
+* If you want to convert the Best Track hurricane datasets into a GEOJSON for testing TRACLUS using alternative data than the one provided by AIS, open the Node.js command prompt and cd into “trajectoryBundling/example”.
+*	Open the file "hurricaneInputCreator.js" and specify and the location of the Best Track text file on line 3 as well as the name of the outputted GEOJSON file on line 65. 
+*	Once these changes have been made, run the script "hurricaneInputCreator.js".
 ```
 node hurricaneInputCreator.js 
 ```
 *	Once the script finishes executing, a GEOJSON file with the specified outputted name will be created in the "geojson" folder outside of any zone folder. In addition, the south, west, north, and east most boundaries are displayed in the prompt. Make sure to take note of these coordinates as they will be used later for initializing the boundary box of the vector tiles.
 
 ### TRACLUS
-*	In the Node.js command prompt, cd into “gdb2mvt/geojson2mvt/example” and run the TRACLUS script "traclus.js"
+*	In the Node.js command prompt, cd into “trajectoryBundling/example” and run the TRACLUS script "traclus.js"
 ```
 node traclus.js path-to-geojson eps MinLns levels
 ```
@@ -102,9 +102,9 @@ geojson/Zone19/Zone19_2011_08(13)
 *	For the Best Track Atlantic data, the most optimal parameters seem to be e=30 and MinLns=6. 
 
 ### geojson2mvt
-*	In the Node.js command prompt, cd into “gdb2mvt/geojson2mvt/example” and run the geojson2mvt script "script.js".
+*	In the Node.js command prompt, cd into “trajectoryBundling/example” and run the geojson2mvt script "geojson2mvt.js".
 ```
-node script.js path-to-geojson-root southBounds westBounds northBounds eastBounds levels
+node geojson2mvt.js path-to-geojson-root southBounds westBounds northBounds eastBounds levels
 ```
 * ‘path-to-geojson-root’ is the destination path of the original geojson file WITHOUT specifying the ‘.geojson’ format at the end. For example, “geojson/Zone19/Zone19_2011_08”. 
 *	‘southBounds’, ‘westBounds’, ‘northBounds’, and ‘eastBounds’ are the boundary box coordinates. 
@@ -113,12 +113,12 @@ node script.js path-to-geojson-root southBounds westBounds northBounds eastBound
 ```
 node script.js geojson/Zone19/Zone19_2011_08 40 -75 48 -63 13
 ```
-*	Once the script finishes executing, a folder with the same name as the root GEOJSON file will be stored in the “Tiles” folder. For example, “gdb2mvt/geojson2mvt/example/Tiles/Zone19_2011_08”.
+*	Once the script finishes executing, a folder with the same name as the root GEOJSON file will be stored in the “Tiles” folder. For example, “trajectoryBundling/example/Tiles/Zone19_2011_08”.
 
 ### Run on localhost
-*	Open "gdb2mvt/geojson2mvt/example/experiment.html" in an editor. 
-*	On line 34, change the vector tile root directory to be the one generated by "script.js" (see geojson2mvt above).
-•	In the Node.js command prompt, cd into "gdb2mvt/geojson2mvt/example" and run python script "cors _server_py3.py" 
+*	Open "trajectoryBundling/example/experiment.html" in an editor. 
+*	On line 34, change the vector tile root directory to be the one generated by "geojson2mvt.js" (see geojson2mvt above).
+•	In the Node.js command prompt, cd into "trajectoryBundling/example" and run python script "cors _server_py3.py" 
 ```
 python cors_server_py3.py
 ```
