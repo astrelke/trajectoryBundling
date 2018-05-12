@@ -4,9 +4,7 @@ A Python and JavaScript pipeline that converts Automated Identification System (
 ## Dependencies 
 ### AIS Data
 *	Download AIS datasets from desired year: https://marinecadastre.gov/ais/. 
-* In "trajectoryBundling", create a folder for each zone 01-19 (ex. Zone19)
-*	Move AIS geo-database (gdb) files to respective zone folders. 
-*	In "trajectoryBundling/example/geojson", repeat the process of creating a folder for each zone 01-19. These folder will be used later to store the GEOJSON files once they have been created. 
+* Move AIS geo-database (gdb) files to respective zone folders.  
 
 ### Node.js
 *	Install latest version of Node.js: https://nodejs.org/en/download/.
@@ -63,7 +61,7 @@ python data2geojson.py path-to-parquet southBounds westBounds northBounds eastBo
 ```
 * 'path-to-parquet' is the destination path to the "Broadcast.parqet" file. For example, “Zone19/Zone19_2011_01/Broadcast.parquet”. 
 *	'southBounds', 'westBounds', 'northBounds', and 'eastBounds' are the boundary coordinates. Only coordinate points within this boundary will be included in the GEOJSON. For example, 40 -73 48 -65 (boundary for New England).
-*	Once the sciprt finishes executing, a GEOJSON file with the same name as the folder containing the parquet file will be created in its respective zone folder within the "geojson" directory (see AIS Data in Dependencies section above). For example, “trajectoryBundling/example/geojson/Zone19/Zone19_2011_01.geojson”.
+*	Once the sciprt finishes executing, a GEOJSON file with the same name as the folder containing the parquet file will be created in its respective zone folder within the "geojson" directory. For example, “trajectoryBundling/example/geojson/Zone19/Zone19_2011_01.geojson”.
 
 ### Hurricane Input Creator (Optional)
 * If you want to convert the Best Track hurricane datasets into a GEOJSON for testing TRACLUS using alternative data than the one provided by AIS, open the Node.js command prompt and cd into “trajectoryBundling/example”.
