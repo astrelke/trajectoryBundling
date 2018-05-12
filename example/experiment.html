@@ -31,7 +31,7 @@ map.on('load', function() {
         "type": "line",
         "source": {
             "type": "vector",
-            "tiles": ["http://localhost:31338/TX/{z}/{x}/{y}.mvt"],
+            "tiles": ["http://localhost:31338/Tiles/Zone19_2011_8/{z}/{x}/{y}.mvt"],
             "minzoom": 0,
             "maxzoom": 13
         },
@@ -43,7 +43,7 @@ map.on('load', function() {
         "paint": {
             "line-opacity": 0.6,
             "line-color": "rgb(53, 175, 109)",
-            "line-width": 2
+            "line-width": ["get","weight"]
         }
     }, 'waterway-label');
 });
