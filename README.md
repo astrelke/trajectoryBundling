@@ -61,7 +61,7 @@ python data2geojson.py path-to-parquet southBounds westBounds northBounds eastBo
 ```
 * 'path-to-parquet' is the destination path to the "Broadcast.parqet" file. For example, “Zone19/Zone19_2011_01/Broadcast.parquet”. 
 *	'southBounds', 'westBounds', 'northBounds', and 'eastBounds' are the boundary coordinates. Only coordinate points within this boundary will be included in the GEOJSON. For example, 40 -73 48 -65 (boundary for New England).
-*	Once the sciprt finishes executing, a GEOJSON file with the same name as the folder containing the parquet file will be created in its respective zone folder within the "geojson" directory. For example, “trajectoryBundling/example/geojson/Zone19/Zone19_2011_01.geojson”.
+*	Once the script finishes executing, a GEOJSON file with the same name as the folder containing the parquet file will be created in its respective zone folder within the "geojson" directory. For example, “trajectoryBundling/example/geojson/Zone19/Zone19_2011_01.geojson”.
 
 ### Hurricane Input Creator (Optional)
 * If you want to convert the Best Track hurricane datasets into a GEOJSON for testing TRACLUS using alternative data than the one provided by AIS, open the Node.js command prompt and cd into “trajectoryBundling/example”.
