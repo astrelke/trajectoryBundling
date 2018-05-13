@@ -1,21 +1,14 @@
 {
-  "name": "geojson2mvt",
-  "version": "0.0.3",
-  "description": "",
-  "keywords": [
-    "mapboxgl",
-    "vector tiles",
-    "web mapping",
-    "web maps",
-    "geojson"
-  ],
+  "name": "trajectorybundling",
+  "version": "1.0.0",
+  "description": "A Python and JavaScript pipeline that converts Automated Identification System (AIS) data into a {z}/{x}/{y} hierarchy of Mapbox vector tiles in which trajectories are bundled from the bottom {z} level up in order to reduce overlap and clutter in large-scale data, and to ensure continuity between vector tile levels.  Bundling implementation uses the TRACLUS algorithm[1] , the conversion from GEOJSON to Mapbox Vector tile is handled by geojson2mvt[2], and the vector tiles are hosted on a local server using Mapbox vector tile specification and tools[3].",
   "main": "src/index.js",
+  "scripts": {
+    "test": "echo \\\"Error: no test specified\\\" && exit 1"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/NYCPlanning/geojson2mvt.git"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "url": "https://github.com/astrelke/trajectoryBundling.git"
   },
   "author": "",
   "dependencies": {
@@ -29,6 +22,6 @@
     "python3": "0.0.1",
     "simplify-geojson": "^1.0.3",
     "store-mvt": "^1.0.1",
-    "vt-pbf": "^2.1.2"
+    "vt-pbf": "^2.1.4"
   }
 }
