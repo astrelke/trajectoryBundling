@@ -4,11 +4,15 @@ var json;
 var myArgs=[];
 //Get command line arguments
 if(process.argv.length < 8){
-	console.log("Please enter the following parameters: path_to_geojson_root levels southBounds westBounds northBounds eastBounds"); 
+	console.log("Please enter the following parameters: path_to_geojson_root southBounds westBounds northBounds eastBounds levels"); 
 	process.exit();
 }
 for(var i=2;i<process.argv.length;i++){
 	myArgs.push(process.argv[i]);
+}
+if(isNaN(myArgs[1]) || isNaN(myArgs[2]) || isNaN(myArgs[3]) || isNaN(myArgs[4]) || isNaN(myArgs[5])){
+	console.log("Invalid Parameters: Please enter numerical values for bbox coordinates and 'level' parameters");
+	process.exit();
 }
 //Get start and end index of root directory name
 var start = myArgs[0].lastIndexOf("/")+1;
