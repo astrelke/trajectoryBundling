@@ -9,12 +9,16 @@ var coefficient;
 var projPoint;
 //Get command line arguments
 var myArgs=[];
-if(process.argv.length < 7){
-	console.log("Please enter the following parameters: path_to_geojson epslion MinLns smoothingParameter levels"); 
+if(process.argv.length < 6){
+	console.log("Please enter the following parameters: path_to_geojson epslion MinLns levels"); 
 	process.exit();
 }
 for(var i=2;i<process.argv.length;i++){
 	myArgs.push(process.argv[i]);
+}
+if(isNaN(myArgs[1]) || isNaN(myArgs[2]) || isNaN(myArgs[3])){
+	console.log("Invalid parameters: Please enter numerical values for 'eps', 'MinLns', and 'levels'");
+	process.exit();
 }
 init();
 
@@ -28,7 +32,7 @@ function init(){
 	var MinLns;
 	var fileName;
 	//Bundle trajectories from bottom level up
-	for(var level=parseInt(myArgs[4]); level >=0; level--){
+	for(var level=parseInt(myArgs[3]); level >=0; level--){
 		console.log("Level: " + level);
 		T=[];
 		features=[];
@@ -368,7 +372,6 @@ function RepresentativeTrajectoryGeneration(C,MinLns,Y){
 					density+=intxn.density;
 				});
 				pAvg2 = [p[0], y/intersects.length];
-				console.log(pAvg2);
 				//Undo the rotation and get the point pAvg2
 				pAvg = rotatePoint(pAvg2,angle);
 				//Append Pavg to the end of RTRi
