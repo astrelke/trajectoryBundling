@@ -4,7 +4,7 @@ A Python and JavaScript pipeline that converts Automated Identification System (
 ## Dependencies 
 ### AIS Data
 *	Download AIS datasets from desired year: https://marinecadastre.gov/ais/. 
-* Move AIS geo-database (gdb) files to respective zone folders.  
+* Move AIS geo-database (gdb) files to respective zone folders in "ais_data" directory.   
 
 ### Node.js
 *	Install latest version of Node.js: https://nodejs.org/en/download/.
