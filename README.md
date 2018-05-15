@@ -91,7 +91,7 @@ geojson/Zone19/Zone19_2011_08(1)
 geojson/Zone19/Zone19_2011_08(13)
 ```
 #### Estimating Parameters
-*	The key to obtaining a successful set of reprehensive trajectories for each level is to know what values to set the parameters as. 
+*	The key to obtaining a successful set of representative trajectories for each level is to know what values to set the parameters as. 
 *	If epsilon is set too large then it will cluster lines that are too far apart, and if epsilon is too small then nearby lines that should be clustered will not. 
 *	‘MinLns’ is important for calculating the QMeasure[1], which is used to suggest the quality of a cluster. The smaller the QMeasure, the better the cluster quality is, so ‘MinLns’ is typically set between values 4-8.   
 *	The higher ‘level’ is set to, the more of the original trajectory will be preserved when zooming in on the map. 
