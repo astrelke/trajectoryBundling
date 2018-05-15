@@ -35,7 +35,7 @@ conda install pip
 ```
 *	Install GeoJSON library 
 ```
-conda install geojson
+pip install geojson
 ```
 ### Best Track Hurricane Dataset (optional)
 *	Download Best Track Atlantic and/or Pacific hurricane datasets as a .txt file: https://www.nhc.noaa.gov/data/#hurdat 
