@@ -1,6 +1,6 @@
 var fs = require('fs');
 var vtpbf = require('vt-pbf');
-var geojsonvt =  require('./geojson-vt/src/index.js');
+var geojsonvt =  require('geojson-vt');
 var simplify = require('simplify-geojson')
 
 var helpers = require('./helpers.js');
