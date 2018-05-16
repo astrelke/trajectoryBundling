@@ -32,7 +32,7 @@ function init(){
 	var MinLns;
 	var fileName;
 	//Bundle trajectories from bottom level up
-	for(var level=parseInt(myArgs[3]); level >=0; level--){
+	for(var level=parseInt(myArgs[4]); level >=0; level--){
 		console.log("Level: " + level);
 		T=[];
 		features=[];
@@ -50,8 +50,9 @@ function init(){
 		}
 		//Calculate parameters for current level
 		e = parseFloat(myArgs[1]) / Math.pow(2,level);
-		MinLns = Math.floor(parseInt(myArgs[2]) / (level+1));
-		Y = MinLns / 1.5;
+		MinLns = Math.ceil(parseInt(myArgs[2]) / Math.pow(2,level));
+		console.log(MinLns);
+		Y = parseFloat(myArgs[3])/ Math.pow(2,level);
 		//Run TRACLUS 
 		result = TRACULUS(T,e,MinLns,Y);
 		//Create array of GEOJSON feature objects
@@ -188,7 +189,7 @@ function ApproximateTrajectoryParitioning(tr,i,D,costAdv,MinLns){
 		MinLns: Minimum number of neighbors in cluster, MinClus: Min number of trajectories in cluster)
 	Output (O: Set of clusteres) 
 */
-function LineSegmentClustering(D,e,MinLns){
+function LineSegmentClustering(D,e,MinLns,MinClus){
 	/*Variables
 		Arrays (
 			tempD: Temporary place holder for D
@@ -209,6 +210,7 @@ function LineSegmentClustering(D,e,MinLns){
 			//Compute N(L) and predict clusters, where L=D[i]
 			tempD = D; tempC = C; 
 			N = Ne1(tempD,i,e,tempC,clusterId);
+			console.log("N: " + N.density);
 			if(N.density >= MinLns){
 				//Assign all points in neighborhood to cluster
 				D = tempD;
@@ -225,7 +227,9 @@ function LineSegmentClustering(D,e,MinLns){
 	C.forEach(function(c){
 		/*Calculate trajectory cardinality and compare with threshold
 		a threshold other than MinLns can be used*/
-		if(PTR(c) > MinLns) O.push(c);	//Add C to set of clusters O
+		var ptr = PTR(c);
+		console.log("PTR: " + ptr);
+		if(ptr > MinLns) O.push(c);	//Add C to set of clusters O
 	});
 	return O;
 }
@@ -248,6 +252,7 @@ function ExpandCluster(Q,D,C,clusterId,e,MinLns){
 	while(Q.length > 0){
 		//Compute N(L), where L=Q[0]
 		N = Ne2(Q,0,e);
+		console.log("N2: "+ N.density);
 		if(N.density >= MinLns){
 			N.lines.forEach(function(X){		//For each neighboring line X
 				//Assign clusterId to X
@@ -360,6 +365,7 @@ function RepresentativeTrajectoryGeneration(C,MinLns,Y){
 				}
 			}
 		});
+		console.log("pNum: " + pNum);
 		//console.log(intersects.length);
 		if(pNum >= MinLns && pNum > 0){
 			//Compute diff
@@ -564,6 +570,7 @@ function Ne1(D,index,e,C,clusterId){
 	D[index].classified = true;
 	D[index].noise = false;
 	C[clusterId].push(D[index]);
+	N.density += D[index].density;
 	for(var i=0; i<D.length; i++){
 		if(i != index && !D[i].classified){
 			//Get distance
