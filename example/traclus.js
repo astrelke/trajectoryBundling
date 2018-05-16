@@ -9,15 +9,15 @@ var coefficient;
 var projPoint;
 //Get command line arguments
 var myArgs=[];
-if(process.argv.length < 6){
-	console.log("Please enter the following parameters: path_to_geojson epslion MinLns levels"); 
+if(process.argv.length < 7){
+	console.log("Please enter the following parameters: path_to_geojson eps MinLns Y levels"); 
 	process.exit();
 }
 for(var i=2;i<process.argv.length;i++){
 	myArgs.push(process.argv[i]);
 }
-if(isNaN(myArgs[1]) || isNaN(myArgs[2]) || isNaN(myArgs[3])){
-	console.log("Invalid parameters: Please enter numerical values for 'eps', 'MinLns', and 'levels'");
+if(isNaN(myArgs[1]) || isNaN(myArgs[2]) || isNaN(myArgs[3]) || isNaN(myArgs[4])){
+	console.log("Invalid parameters: Please enter numerical values for 'eps', 'MinLns', 'Y' and 'levels'");
 	process.exit();
 }
 init();
@@ -51,7 +51,6 @@ function init(){
 		//Calculate parameters for current level
 		e = parseFloat(myArgs[1]) / Math.pow(2,level);
 		MinLns = Math.ceil(parseInt(myArgs[2]) / Math.pow(2,level));
-		console.log(MinLns);
 		Y = parseFloat(myArgs[3])/ Math.pow(2,level);
 		//Run TRACLUS 
 		result = TRACULUS(T,e,MinLns,Y);
@@ -210,7 +209,6 @@ function LineSegmentClustering(D,e,MinLns,MinClus){
 			//Compute N(L) and predict clusters, where L=D[i]
 			tempD = D; tempC = C; 
 			N = Ne1(tempD,i,e,tempC,clusterId);
-			console.log("N: " + N.density);
 			if(N.density >= MinLns){
 				//Assign all points in neighborhood to cluster
 				D = tempD;
@@ -228,7 +226,6 @@ function LineSegmentClustering(D,e,MinLns,MinClus){
 		/*Calculate trajectory cardinality and compare with threshold
 		a threshold other than MinLns can be used*/
 		var ptr = PTR(c);
-		console.log("PTR: " + ptr);
 		if(ptr > MinLns) O.push(c);	//Add C to set of clusters O
 	});
 	return O;
@@ -252,7 +249,6 @@ function ExpandCluster(Q,D,C,clusterId,e,MinLns){
 	while(Q.length > 0){
 		//Compute N(L), where L=Q[0]
 		N = Ne2(Q,0,e);
-		console.log("N2: "+ N.density);
 		if(N.density >= MinLns){
 			N.lines.forEach(function(X){		//For each neighboring line X
 				//Assign clusterId to X
@@ -365,8 +361,6 @@ function RepresentativeTrajectoryGeneration(C,MinLns,Y){
 				}
 			}
 		});
-		console.log("pNum: " + pNum);
-		//console.log(intersects.length);
 		if(pNum >= MinLns && pNum > 0){
 			//Compute diff
 			diff = Math.abs(p[0] - xPrev);
