@@ -50,7 +50,7 @@ function init(){
 		}
 		//Calculate parameters for current level
 		e = parseFloat(myArgs[1]) / Math.pow(2,level);
-		MinLns = Math.floor(parseInt(myArgs[2]) / Math.pow(2,level));
+		MinLns = Math.floor(parseInt(myArgs[2]) / (level+1));
 		Y = MinLns / 1.5;
 		//Run TRACLUS 
 		result = TRACULUS(T,e,MinLns,Y);
@@ -118,9 +118,9 @@ function TRACULUS(T,e,MinLns,Y){
 	*/
 	R.forEach(function(rtr){
 		if(rtr.density > 1000){
-			rtr.weight = 5.0;
+			rtr.weight = 4.0;
 		} else {
-			rtr.weight = rtr.density/250 + 1.0;
+			rtr.weight = rtr.density/333 + 1.0;
 		}
 	});
 	//console.log("Grouping Phase Complete");
