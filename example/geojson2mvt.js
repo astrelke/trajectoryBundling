@@ -1,6 +1,7 @@
 var fs = require('fs');
 var geojson2mvt = require('../src');
 var json;
+
 var myArgs=[];
 //Get command line arguments
 if(process.argv.length < 8){
@@ -32,7 +33,7 @@ for(var i=0; i<=parseInt(myArgs[5]); i++){
 		min :i,
 		max :i
 	  },
-	  tolerance : 6
+	  tolerance : 0
 	  //tolerance : myArgs[6]
 	};
 	console.time('geojson2mvt'+i.toString());
@@ -40,3 +41,26 @@ for(var i=0; i<=parseInt(myArgs[5]); i++){
 	geojson2mvt(options);
 	console.timeEnd('geojson2mvt'+i.toString());
 }
+
+
+/*
+json = JSON.parse(fs.readFileSync('geojson/Zone19/Zone19_2011_8.geojson', "utf8"));
+	var options = {
+	  layers: {
+		layer0: json,
+	  },
+	  rootDir: "Tiles/ZoneTest",
+	  //bbox : [0,-110,81,63], //[south,west,north,east]
+	  bbox : [40, -73, 48, -63],	//[south,west,north,east]
+	  zoom : {
+		min :0,
+		max :8
+	  },
+	  tolerance : 0
+	  //tolerance : myArgs[6]
+	};
+	//console.time('geojson2mvt'+i.toString());
+	// build the static tile pyramid
+	geojson2mvt(options);
+	//console.timeEnd('geojson2mvt'+i.toString());
+*/
