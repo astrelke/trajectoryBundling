@@ -19,6 +19,8 @@
     "geojson-vt": "^2.4.0",
     "json-bigint": "^0.2.3",
     "line-intersection": "^1.0.8",
+    "mapbox-gl-regex-query": "^0.2.0",
+    "python": "0.0.4",
     "python3": "0.0.1",
     "simplify-geojson": "^1.0.3",
     "store-mvt": "^1.0.1",
