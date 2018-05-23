@@ -26,7 +26,7 @@ init();
 function init(){
 	var fs = require('fs');
 	var T, features,result;
-	var feature,json,newJson;
+	var feature,json,newJson,Tobj;
 	var e,Y;
 	var start = true;
 	var MinLns;
@@ -37,20 +37,27 @@ function init(){
 		T=[];
 		features=[];
 		//Determine input file
-		if(start){
-			json = JSON.parse(fs.readFileSync(myArgs[0], "utf8"));
-			json.features.forEach(function(feat){
-				T.push({"coordinates":feat.geometry.coordinates,"density":feat.properties.density})
-			});
-		} else {
-			json = JSON.parse(fs.readFileSync(insertFileNumber(myArgs[0],level+1), "utf8"));
-			json.features.forEach(function(feat){
-				T.push({"coordinates":feat.geometry.coordinates,"density":feat.properties.density})
-			});
-		}
+		if(start) json = JSON.parse(fs.readFileSync(myArgs[0], "utf8"));
+		else json = JSON.parse(fs.readFileSync(insertFileNumber(myArgs[0],level+1), "utf8"));	
+		json.features.forEach(function(feat){
+			/*Create a different property for each voyageID
+			This is done because MapboxGL does not support regex or array
+			filtering yet, so voyageIDs have to be located via key 
+			using the 'has' filter. Used for linked highlighting.
+			*/
+			Tobj = {"coordinates":feat.geometry.coordinates,"density":feat.properties.density,"voyageIDs":[]};
+			//Get voyageID property keys
+			if(start) Tobj.voyageIDs.push("|"+feat.properties.voyageID+"|");
+			else {
+				//console.log(feat.properties.voyageIDs);
+				Tobj.voyageIDs = feat.properties.voyageIDs.split(",");
+			}
+			//console.log(Tobj.voyageIDs);
+			T.push(Tobj);
+		});
 		//Calculate parameters for current level
 		e = parseFloat(myArgs[1]) / Math.pow(2,level);
-		MinLns = Math.ceil(parseInt(myArgs[2]) / Math.pow(2,level));
+		MinLns = Math.floor(parseInt(myArgs[2]) / Math.pow(2,level));
 		Y = parseFloat(myArgs[3])/ Math.pow(2,level);
 		//Run TRACLUS 
 		result = TRACULUS(T,e,MinLns,Y);
@@ -59,7 +66,7 @@ function init(){
 			//console.log(result[i].coordinates);
 			//console.log();
 			feature = {"type":"Feature", "geometry":{"type":"LineString", "coordinates":result[i].coordinates}, 
-				"properties":{"name":i,"density":result[i].density,"weight":result[i].weight}};
+				"properties":{"name":i,"density":result[i].density,"weight":result[i].weight, "voyageIDs":result[i].voyageIDs.toString()}};
 			features.push(feature);
 		}
 		//Output GEOJSON
@@ -113,16 +120,6 @@ function TRACULUS(T,e,MinLns,Y){
 			//if(RTR.density > maxDensity) maxDensity = RTR.density;
 		}
 	});
-	/*Calculate weight of represenative trajectory. 
-	* Unlike density, weight is used as the line width value
-	*/
-	R.forEach(function(rtr){
-		if(rtr.density > 1000){
-			rtr.weight = 4.0;
-		} else {
-			rtr.weight = rtr.density/333 + 1.0;
-		}
-	});
 	//console.log("Grouping Phase Complete");
 	return R;
 }
@@ -151,7 +148,7 @@ function ApproximateTrajectoryParitioning(tr,i,D,costAdv,MinLns){
 			costNopar: MDL cost of original line 
 		)
 	*/
-	var line=[]; var startIndex=0,len=1,currIndex; var costPar=0,costNopar=0;
+	var line=[]; var startIndex=0,len=1,currIndex; var costPar=0,costNopar=0; var Dobj;
 	line.push(tr.coordinates[0]); //The starting point
 	//While there exist a partitioning in the line segment
 	while(startIndex+len < tr.coordinates.length){
@@ -168,7 +165,8 @@ function ApproximateTrajectoryParitioning(tr,i,D,costAdv,MinLns){
 		if(costPar > costNopar+costAdv){
 			//partition at the previous point
 			line.push(tr.coordinates[currIndex-1]);
-			D.push({"L":line,"index": D.length,"trajectory":i,"clusterId":0,"classified":false,"noise":false,"density":tr.density});
+			Dobj = {"L":line,"index": D.length, "trajectory":i,"clusterId":0,"classified":false,"noise":false,"density":tr.density,"voyageIDs": tr.voyageIDs};
+			D.push(Dobj);
 			line = [];
 			line.push(tr.coordinates[currIndex-1]);
 			startIndex = currIndex - 1;
@@ -178,7 +176,8 @@ function ApproximateTrajectoryParitioning(tr,i,D,costAdv,MinLns){
 		} else len += 1;
 	}
 	line.push(tr.coordinates[tr.coordinates.length-1]);
-	D.push({"L":line,"index": D.length, "trajectory":i,"clusterId":0,"classified":false,"noise":false,"density":tr.density});
+	Dobj = {"L":line,"index": D.length, "trajectory":i,"clusterId":0,"classified":false,"noise":false,"density":tr.density,"voyageIDs":tr.voyageIDs};
+	D.push(Dobj);
 }
 
 /* Line Segment Clustering
@@ -307,19 +306,33 @@ function RepresentativeTrajectoryGeneration(C,MinLns,Y){
 			y: Sum of intersecting points Y'-values
 		)
 	*/
-	var V,v2,C2=[],P=[],sweepLine,intersects,pAvg,pAvg2,RTR={"coordinates":[],"density":0};
-	var intersect;
+	var V,v2,C2=[],P=[],voyageIDs,sweepLine,intersects;
+	var intersect,pAvg,pAvg2,RTR={"coordinates":[],"density":0,"weight":0,"voyageIDs":[]};
 	var i=0, j=0,pNum=0,density=0;
 	var x1=0.0,x2=0.0,y1=0.0,y2=0.0,angle,diff,xPrev=0.0,y=0.0;
 	var lineIntersection = require('line-intersection');
-	
-	//Compute average direction vector V
+	//Get cluster information such as total directional coordinates, density, and voyageIDs
 	C.forEach(function(v){
 		x1 += v.L[0][0]*v.density; x2 += v.L[1][0]*v.density; y1 += v.L[0][1]*v.density; y2 += v.L[1][1]*v.density;
 		density += v.density;
+		//Get voyageIDs
+		voyageIDs = v.voyageIDs;
+		//console.log(voyageIDs);
+		voyageIDs.forEach(function(id){
+			if(!(RTR.voyageIDs.includes(id))) RTR.voyageIDs.push(id);
+		});
 	});
-	V = [[x1/density,y1/density],[x2/density,y2/density]];
 	RTR.density = density;
+	/*Calculate weight of represenative trajectory. 
+	* Unlike density, weight is used as the line width value
+	*/
+	if(RTR.density > 1000){
+		RTR.weight = 4.0;
+	} else {
+		RTR.weight = RTR.density/333 + 1.0;
+	}
+	//Compute average direction vector V
+	V = [[x1/density,y1/density],[x2/density,y2/density]];
 	//Calculate angle in which to rotate X axis
 	angle = angleBetween2Lines(V[0],[V[1][0],V[0][1]],V[0],V[1]);
 	//X'-value denotes the coordinate of the X' axis
