@@ -15,6 +15,7 @@ if(isNaN(myArgs[1]) || isNaN(myArgs[2]) || isNaN(myArgs[3]) || isNaN(myArgs[4]) 
 	console.log("Invalid Parameters: Please enter numerical values for bbox coordinates and 'level' parameters");
 	process.exit();
 }
+
 //Get start and end index of root directory name
 var start = myArgs[0].lastIndexOf("/")+1;
 if(start < 0) start = 0;
@@ -44,14 +45,14 @@ for(var i=0; i<=parseInt(myArgs[5]); i++){
 
 
 /*
-json = JSON.parse(fs.readFileSync('geojson/Zone19/Zone19_2011_8.geojson', "utf8"));
+json = JSON.parse(fs.readFileSync('geojson/Zone19/Zone19_2011_01(14).geojson', "utf8"));
 	var options = {
 	  layers: {
 		layer0: json,
 	  },
 	  rootDir: "Tiles/ZoneTest",
 	  //bbox : [0,-110,81,63], //[south,west,north,east]
-	  bbox : [40, -73, 48, -63],	//[south,west,north,east]
+	  bbox : [0, -73, 85, -63],	//[south,west,north,east]
 	  zoom : {
 		min :0,
 		max :8
@@ -63,4 +64,4 @@ json = JSON.parse(fs.readFileSync('geojson/Zone19/Zone19_2011_8.geojson', "utf8"
 	// build the static tile pyramid
 	geojson2mvt(options);
 	//console.timeEnd('geojson2mvt'+i.toString());
-*/
+	*/
