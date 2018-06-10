@@ -25,7 +25,7 @@ conda create -n name_of_my_env python
 ```
 activate name_of_my_env
 ```
-* Make sure you are in your created environment when installing the following python toolkits.
+* Make sure you are in your created environment when installing the following python toolkits:
 
 #### Pandas
 *	Install pandas library
@@ -58,34 +58,24 @@ conda install -c conda-forge shapely
 ```
 
 ## How to Run
-### ais-to-parquet
+### Convert AIS Data to Parquet
 *	Open Anaconda command prompt and cd into "trajectoryBundling" folder. 
 *	For each gdb file you wish to convert into a set of parquet files, run python script "ais-to-parquet-in-mem.py".
 ```
 python ais-to-parquet-in-mem.py path-to-gdb.zip
 ```
-* 'path-to-gdb.zip' is the destination path to the gdb.zip file. For example, “Zone19/Zone19_2011_01.gdb.zip” 
-*	A folder with the same name and location as the gdb.zip file will be created as a result, which contains a parquet file for the broadcast, vessel, and voyage data. For example, “Zone19/Zone19_2011_01/Broadcast.parquet”
+* 'path-to-gdb.zip' is the destination path to the gdb.zip file. For example, “ais_data/Zone19/Zone19_2011_01.gdb.zip” 
+*	A folder with the same name and location as the gdb.zip input file will be created as a result, which contains a parquet file for the broadcast, vessel, and voyage data. For example, “Zone19/Zone19_2011_01/Broadcast.parquet”
 * Note that only "Broadcast.parquet" is used when creating the GEOJSON in the next step.
 
-### parquet2geojson
+### Convert Parquet to Geojson
 *	Open Anaconda command prompt and cd into "trajectoryBundling" folder.
-*	For each "Broadcast.parquet" file you wish to convert into a GEOJSON, run python script "data2geojson.py".
+*	For each "Broadcast.parquet" file you wish to convert into a GEOJSON, run python script "ais-group-and-simplify-from-parqut.py".
 ```
-python data2geojson.py path-to-parquet southBounds westBounds northBounds eastBounds
+python ais-group-and-simplify-from-parquet.py path-to-parquet
 ```
-* 'path-to-parquet' is the destination path to the "Broadcast.parqet" file. For example, “Zone19/Zone19_2011_01/Broadcast.parquet”. 
-*	'southBounds', 'westBounds', 'northBounds', and 'eastBounds' are the boundary coordinates. Only coordinate points within this boundary will be included in the GEOJSON. For example, 40 -73 48 -65 (boundary for New England).
+* 'path-to-parquet' is the destination path to the "Broadcast.parqet" file. For example, “ais_data/Zone19/Zone19_2011_01/Broadcast.parquet”. 
 *	Once the script finishes executing, a GEOJSON file with the same name as the folder containing the parquet file will be created in its respective zone folder within the "geojson" directory. For example, “trajectoryBundling/example/geojson/Zone19/Zone19_2011_01.geojson”.
-
-### Hurricane Input Creator (Optional)
-* If you want to convert the Best Track hurricane datasets into a GEOJSON for testing TRACLUS using alternative data than the one provided by AIS, open the Node.js command prompt and cd into “trajectoryBundling/example”.
-*	Open the file "hurricaneInputCreator.js" and specify and the location of the Best Track text file on line 3 as well as the name of the outputted GEOJSON file on line 65. 
-*	Once these changes have been made, run the script "hurricaneInputCreator.js".
-```
-node hurricaneInputCreator.js 
-```
-*	Once the script finishes executing, a GEOJSON file with the specified outputted name will be created in the "geojson" folder outside of any zone folder. In addition, the south, west, north, and east most boundaries are displayed in the prompt. Make sure to take note of these coordinates as they will be used later for initializing the boundary box of the vector tiles.
 
 ### TRACLUS
 *	In the Node.js command prompt, cd into “trajectoryBundling/example” and run the TRACLUS script "traclus.js"
