@@ -47,6 +47,7 @@
 </div>
 <script>
 var currentMonth;
+var map, map2;
 window.onload = function() { start(); }
 
 window.onresize = function() {
@@ -79,16 +80,18 @@ function start(){
 	document.getElementById("month").value = month;
 	currentMonth = month;
 	mapboxgl.accessToken = 'pk.eyJ1IjoiYXN0cmVsa2UiLCJhIjoiY2pjNnI1azltMWxoMDJ3bnl5MDRvMDlqbSJ9.DiXgHhxTTdOrKM4huxjgfQ';
-	var map = new mapboxgl.Map({
+	map = new mapboxgl.Map({
 		container: 'map',
 		style: 'mapbox://styles/mapbox/light-v9',
 		zoom: 0,
+		maxzoom: 14,
 		center: [0, 0]
 	});
-	var map2 = new mapboxgl.Map({
+	map2 = new mapboxgl.Map({
 		container: 'map2',
 		style: 'mapbox://styles/mapbox/light-v9',
 		zoom: 0,
+		maxzoom: 8,
 		center: [0, 0]
 	});
 
@@ -97,9 +100,9 @@ function start(){
 		// https://www.mapillary.com/developer/tiles-documentation/#sequence-layer
 		map.addSource("voyages",{
 			"type": "vector",
-			"tiles": ["http://localhost:31338/Tiles/Zone19_2011_"+month+"/{z}/{x}/{y}.mvt"],
+			"tiles": ["http://localhost:31338/Tiles/Zone19_2011_01/{z}/{x}/{y}.mvt"],
 			"minzoom": 0,
-			"maxzoom": 8
+			"maxzoom": 14
 		});
 		map.addLayer({
 			"id": "mapillary",
@@ -130,35 +133,16 @@ function start(){
 				"line-opacity": 0
 			}
 		});
+		/*
+			Hover over trajectory on left-hand map 
+			to highlight all trajectories on the right-hand side
+			containing one or more of the same voyage Ids. 
+		*/
 		map.on("mousemove", "mapillary-hover", function(e){
-			var i,j,index;
-			map.getCanvas().style.cursor = "pointer";
-			var idStr = e.features[0].properties.voyageIDs;
-			idStr = idStr.substring(0,idStr.length);
-			var ids = idStr.split(",");
-			map.setFilter("mapillary-hover", ["==","name", e.features[0].properties.name]);
-			map.setPaintProperty('mapillary-hover', 'line-opacity', 1);
-			var features = map2.queryRenderedFeatures({layers:['mapillary2-hover']});
-			var selectedNames = [];
-			for(j=0; j<features.length; j++){
-				for(i=0; i< ids.length; i++){
-					index = features[j].properties.voyageIDs.indexOf(ids[i]);
-					if(index > -1){
-						selectedNames.push(features[j].properties.name);
-						break;
-					}
-				}
-			};
-			map2.setFilter("mapillary2-hover", ["in","name"].concat(selectedNames));
-			map2.setPaintProperty('mapillary2-hover', 'line-opacity',1);
+			activateHover(e);
 		});
 		map.on("mouseleave", "mapillary-hover", function(){
-			setTimeout( function(){
-				map.setFilter("mapillary-hover", ["has","name"]);	
-				map2.setFilter("mapillary2-hover", ["has","name"]);	
-			}, 200);
-			map2.setPaintProperty('mapillary2-hover', 'line-opacity', 0);
-			map.setPaintProperty('mapillary-hover', 'line-opacity', 0);
+			deactivateHover();
 		});
 	});
 	
@@ -167,7 +151,7 @@ function start(){
 		// https://www.mapillary.com/developer/tiles-documentation/#sequence-layer
 		map2.addSource("voyages2",{
 			"type": "vector",
-			"tiles": ["http://localhost:31338/Tiles/Zone19_2011_"+month+"/{z}/{x}/{y}.mvt"],
+			"tiles": ["http://localhost:31338/Tiles/ZoneTest/{z}/{x}/{y}.mvt"],
 			"minzoom": 0,
 			"maxzoom": 8
 		});
@@ -201,34 +185,10 @@ function start(){
 			}
 		});
 		map2.on("mousemove", "mapillary2-hover", function(e){
-			var i,j,index;
-			map2.getCanvas().style.cursor = "pointer";
-			var idStr = e.features[0].properties.voyageIDs;
-			idStr = idStr.substring(0,idStr.length);
-			var ids = idStr.split(",");
-			map2.setFilter("mapillary2-hover", ["==","name", e.features[0].properties.name]);
-			map2.setPaintProperty('mapillary2-hover', 'line-opacity', 1);
-			var features = map.queryRenderedFeatures({layers:['mapillary-hover']});
-			var selectedNames = [];
-			for(j=0; j<features.length; j++){
-				for(i=0; i< ids.length; i++){
-					index = features[j].properties.voyageIDs.indexOf(ids[i]);
-					if(index > -1){
-						selectedNames.push(features[j].properties.name);
-						break;
-					}
-				}
-			};
-			map.setFilter("mapillary-hover", ["in","name"].concat(selectedNames));
-			map.setPaintProperty('mapillary-hover', 'line-opacity',1);
+			activateHover(e);
 		});
 		map2.on("mouseleave", "mapillary2-hover", function(){
-			setTimeout( function(){
-				map.setFilter("mapillary-hover", ["has","name"]);	
-				map2.setFilter("mapillary2-hover", ["has","name"]);	
-			}, 200);
-			map2.setPaintProperty('mapillary2-hover', 'line-opacity', 0);
-			map.setPaintProperty('mapillary-hover', 'line-opacity', 0);
+			deactivateHover();
 		});
 	});
 	map.addControl(new mapboxgl.NavigationControl());
@@ -236,14 +196,60 @@ function start(){
 }
 
 function changeMonth(){
-		var month, r = confirm("Do you want to change the month of the data?");
-		if(r == true){
-			month = document.getElementById("month").value;
-			window.location = "http://localhost:31338/dualMaps.html?month="+month;
-		} else {
-			document.getElementById("month").value = currentMonth;
-		}
+	var month, r = confirm("Do you want to change the month of the data?");
+	if(r == true){
+		month = document.getElementById("month").value;
+		window.location = "http://localhost:31338/dualMaps.html?month="+month;
+	} else {
+		document.getElementById("month").value = currentMonth;
 	}
+}
+
+function activateHover(e){
+	var i,j,index;
+	map.getCanvas().style.cursor = "pointer";
+	var idStr = e.features[0].properties.voyageIDs;
+	idStr = idStr.substring(0,idStr.length);
+	var ids = idStr.split(",");			
+	//Get trajectories on left-hand side with one or more of the same voyage Ids as the one hovered
+	var features = map.queryRenderedFeatures({layers:['mapillary-hover']});
+	var selectedNames = [];
+	for(j=0; j<features.length; j++){
+		for(i=0; i< ids.length; i++){
+			index = features[j].properties.voyageIDs.indexOf(ids[i]);
+			if(index > -1){
+				selectedNames.push(features[j].properties.name);
+				break;
+			}
+		}
+	};	
+	///Get trajectories on right-hand side with one of the same voyage Ids as the one hovered
+	var features2 = map2.queryRenderedFeatures({layers:['mapillary2-hover']});
+	var selectedNames2 = [];
+	for(j=0; j<features2.length; j++){
+		for(i=0; i< ids.length; i++){
+			index = features2[j].properties.voyageIDs.indexOf(ids[i]);
+			if(index > -1){
+				selectedNames2.push(features2[j].properties.name);
+				break;
+			}
+		}
+	};
+	//Highlight Trajectories
+	map.setFilter("mapillary-hover", ["in","name"].concat(selectedNames));
+	map.setPaintProperty('mapillary-hover', 'line-opacity',1);
+	map2.setFilter("mapillary2-hover", ["in","name"].concat(selectedNames2));
+	map2.setPaintProperty('mapillary2-hover', 'line-opacity',1);
+}
+
+function deactivateHover(){
+	setTimeout( function(){
+		map.setFilter("mapillary-hover", ["has","name"]);	
+		map2.setFilter("mapillary2-hover", ["has","name"]);	
+	}, 200);
+	map2.setPaintProperty('mapillary2-hover', 'line-opacity', 0);
+	map.setPaintProperty('mapillary-hover', 'line-opacity', 0);
+}
 </script>
 
 </body>
