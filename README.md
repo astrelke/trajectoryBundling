@@ -15,20 +15,24 @@ A Python and JavaScript pipeline that converts Automated Identification System (
 ### Anaconda 
 *	Install the Anaconda command prompt: https://www.anaconda.com/download/
 
-### GEOJSON and Pandas Packages
-*	Open the Anaconda command prompt.
-*	Create a new conda environment:
+### Python Toolkits
+* Open the Anaconda command prompt.
+* Create a new conda environment
 ```
-conda create –n name_of_my_env python 
+conda create -n name_of_my_env python
 ```
-*	Enter newly created environment:
+* Enter newly created environment:
 ```
 activate name_of_my_env
 ```
+* Make sure you are in your created environment when installing the following python toolkits.
+
+#### Pandas
 *	Install pandas library
 ```
-conda install panda
+conda install pandas
 ```
+#### GEOJSON
 *	Install pip
 ```
 conda install pip
@@ -37,10 +41,21 @@ conda install pip
 ```
 pip install geojson
 ```
-### Best Track Hurricane Dataset (optional)
-*	Download Best Track Atlantic and/or Pacific hurricane datasets as a .txt file: https://www.nhc.noaa.gov/data/#hurdat 
-*	Move .txt files to "trajectoryBundling/example"
-
+#### PyProj
+* Install PyProj library 
+```
+conda install -c conda-forge pyproj
+```
+#### Numpy
+* Install Numpy library
+```
+conda install -c anaconda numpy
+```
+#### Shapley 
+* Install Shapely library
+```
+conda install -c conda-forge shapely
+```
 
 ## How to Run
 ### ais-to-parquet
