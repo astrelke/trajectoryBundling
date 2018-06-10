@@ -11,14 +11,14 @@ var prevParLength=0;
 //Get command line arguments
 var myArgs=[];
 if(process.argv.length < 7){
-	console.log("Please enter the following parameters: path_to_geojson eps MinLns Y levels"); 
+	console.log("Please enter the following parameters: path_to_geojson eps Y costAdv levels"); 
 	process.exit();
 }
 for(var i=2;i<process.argv.length;i++){
 	myArgs.push(process.argv[i]);
 }
 if(isNaN(myArgs[1]) || isNaN(myArgs[2]) || isNaN(myArgs[3]) || isNaN(myArgs[4])){
-	console.log("Invalid parameters: Please enter numerical values for 'eps', 'MinLns', 'Y' and 'levels'");
+	console.log("Invalid parameters: Please enter numerical values for 'eps', 'Y', 'costAdv', and 'levels'");
 	process.exit();
 }
 init();
@@ -59,14 +59,9 @@ function init(){
 		});
 		//Calculate parameters for current level
 		e = parseFloat(myArgs[1]) / Math.pow(2,level);
-		MinLns = 1.0;
-		costAdv = 1.0 / Math.pow(2,level);
-		Y = parseFloat(myArgs[3])/ Math.pow(2,level);
-		/*
-		e = parseFloat(myArgs[1]);
-		MinLns = parseInt(myArgs[2]);
-		Y = parseFloat(myArgs[3]);
-		*/
+		MinLns = 1.0;	//Works best if MinLns is kept at one, otherwise some trajectories will become lost
+		Y = parseFloat(myArgs[2])/ Math.pow(2,level);
+		costAdv =  parseFloat(myArgs[3]) / Math.pow(2,level);
 		//Run TRACLUS 
 		if(start) result = T;
 		else result = TRACULUS(T,e,MinLns,costAdv,Y);			
