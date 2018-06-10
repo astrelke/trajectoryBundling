@@ -99,7 +99,7 @@ geojson/Zone19/Zone19_2011_01(14)
 *	The key to obtaining a successful set of representative trajectories for each level is to know what values to set the parameters as. 
 *	If epsilon is set too large then it will cluster lines that are too far apart, and if epsilon is too small then nearby lines that should be clustered will not. 
 *	The smoothing parameter 'Y' determines how far apart each point in the represented trajectory should be. This parameter should be set to some value greater than 0 to ensure represented trajectories do not come out looking fluctuated, but setting this value too high will cause over-simplification.
-* The cost advantage parameter 'costAdv' is used to prevent over-simplification when paritioning the trajectories. This value should be relatively low to ensure that the trajectories are still being simplified when needed during partioning (0 < costAdv <= 1). 
+* The cost advantage parameter 'costAdv' is used to prevent over-simplification when partioning the trajectories. This value should be relatively low to ensure that the trajectories are still being simplified when needed during partioning (0 < costAdv <= 1). 
 *	The higher ‘level’ is set to, the more of the original trajectory will be preserved when zooming in on the map. 
 *	Unfortunately, there is not a formal method for coming up with these parameters; instead they are obtained through visual inspection and domain knowledge[1]. 
 *	For the Zone 19 data, the most optimal parameters seem to be e=12, Y=3, and costAdv=1.
