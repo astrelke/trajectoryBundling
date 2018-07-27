@@ -46,22 +46,32 @@
 	</div>
 </div>
 <script>
-var currentMonth;
-var map, map2;
+//Global Variables
+var _currentMonth;
+var _ids=[];
+var _map, _map2;
+var _zoom1=0,_zoom2=0, _currentMapNum=0;
+
+//Initialize start function when window loads
 window.onload = function() { start(); }
 
+//Handles windows resize
 window.onresize = function() {
   setWindowSize();
 }
 
+//Window resize function
 function setWindowSize() {
   console.log("----", window.innerWidth, window.innerHeight)
   var width = (window.innerWidth - 6) / 2;
   d3.select("#map").style("width", width + "px")
   d3.select("#map2").style("width", width + "px")
 }
+
+//Set up initial window size
 setWindowSize();
 
+//Initial function for setting up maps and event handlers
 function start(){
 	var sPageURL = decodeURIComponent(window.location.search.substring(1)),
 		sURLVariables = sPageURL.split('&'),
@@ -78,33 +88,33 @@ function start(){
 		window.location = "http://localhost:31338/dualMaps.html?month=01";
 		
 	document.getElementById("month").value = month;
-	currentMonth = month;
+	_currentMonth = month;
 	mapboxgl.accessToken = 'pk.eyJ1IjoiYXN0cmVsa2UiLCJhIjoiY2pjNnI1azltMWxoMDJ3bnl5MDRvMDlqbSJ9.DiXgHhxTTdOrKM4huxjgfQ';
-	map = new mapboxgl.Map({
+	_map = new mapboxgl.Map({
 		container: 'map',
 		style: 'mapbox://styles/mapbox/light-v9',
 		zoom: 0,
 		maxzoom: 14,
 		center: [0, 0]
 	});
-	map2 = new mapboxgl.Map({
+	_map2 = new mapboxgl.Map({
 		container: 'map2',
 		style: 'mapbox://styles/mapbox/light-v9',
 		zoom: 0,
-		maxzoom: 8,
+		maxzoom: 13,
 		center: [0, 0]
 	});
 
-	map.on('load', function() {
+	_map.on('load', function() {
 		// Add Mapillary sequence layer.
 		// https://www.mapillary.com/developer/tiles-documentation/#sequence-layer
-		map.addSource("voyages",{
+		_map.addSource("voyages",{
 			"type": "vector",
-			"tiles": ["http://localhost:31338/Tiles/Zone19_2011_01/{z}/{x}/{y}.mvt"],
+			"tiles": ["http://localhost:31338/Tiles/Zone19_2011_"+_currentMonth+"(1)/{z}/{x}/{y}.mvt"],
 			"minzoom": 0,
 			"maxzoom": 14
 		});
-		map.addLayer({
+		_map.addLayer({
 			"id": "mapillary",
 			"type": "line",
 			"source": "voyages",
@@ -118,7 +128,7 @@ function start(){
 				"line-width": ["get","weight"]
 			}
 		});
-		map.addLayer({
+		_map.addLayer({
 			"id": "mapillary-hover",
 			"type": "line",
 			"source": "voyages",
@@ -130,32 +140,53 @@ function start(){
 			"paint": {
 				"line-color": "rgb(255, 255, 0)",
 				"line-width": ["get","weight"],
-				"line-opacity": 0
-			}
+				"line-opacity": 1
+			},
+			"filter":["==","name",""]
 		});
 		/*
 			Hover over trajectory on left-hand map 
 			to highlight all trajectories on the right-hand side
-			containing one or more of the same voyage Ids. 
+			containing one or more of the same voyage ids. 
 		*/
-		map.on("mousemove", "mapillary-hover", function(e){
+		_map.on("mousemove", "mapillary", function(e){
+			_currentMapNum = 1;
 			activateHover(e);
 		});
-		map.on("mouseleave", "mapillary-hover", function(){
+		_map.on("mouseleave", "mapillary", function(){
 			deactivateHover();
 		});
+		_map.on("zoomend", function(e){
+			if(_zoom1 != Math.floor(_map.getZoom())){
+				_zoom1 = Math.floor(_map.getZoom());
+				console.log(_zoom1);
+				if(_ids.length > 0){
+					var selectedNames = [];
+					if(_zoom1 <= 13) getHighlightedBundles(selectedNames,_zoom1);
+					else getHighlightedBundles(selectedNames,13);
+					_map.setFilter("mapillary-hover", ["in","name"].concat(selectedNames));
+				}
+			}
+		});
+		_map.on("move", function(e){
+			_map2.setZoom(_map.getZoom());
+			_map2.setCenter(_map.getCenter());
+			_map2.setPitch(_map.getPitch());
+			_map2.setBearing(_map.getBearing());
+		});
+		_map.getCanvas().style.cursor = "pointer";
 	});
 	
-	map2.on('load', function() {
+	_map2.on('load', function() {
 		// Add Mapillary sequence layer.
 		// https://www.mapillary.com/developer/tiles-documentation/#sequence-layer
-		map2.addSource("voyages2",{
+		_map2.addSource("voyages2",{
 			"type": "vector",
-			"tiles": ["http://localhost:31338/Tiles/Zone19_2011_01/{z}/{x}/{y}.mvt"],
+			"tiles": ["http://localhost:31338/Tiles/Zone19_2011_"+_currentMonth+"(2)/{z}/{x}/{y}.mvt"],
 			"minzoom": 0,
-			"maxzoom": 8
+			"maxzoom": 13
 		});
-		map2.addLayer({
+		_map2.addLayer({
 			"id": "mapillary2",
 			"type": "line",
 			"source": "voyages2",
@@ -169,7 +200,7 @@ function start(){
 				"line-width": ["get","weight"]
 			}
 		});
-		map2.addLayer({
+		_map2.addLayer({
 			"id": "mapillary2-hover",
 			"type": "line",
 			"source": "voyages2",
@@ -181,74 +212,133 @@ function start(){
 			"paint": {
 				"line-color": "rgb(255, 255, 0)",
 				"line-width": ["get","weight"],
-				"line-opacity": 0
-			}
+				"line-opacity": 1
+			},
+			"filter": ["==","name",""]
 		});
-		map2.on("mousemove", "mapillary2-hover", function(e){
+		_map2.on("mousemove", "mapillary2", function(e){
+			_currentMapNum = 2;
 			activateHover(e);
 		});
-		map2.on("mouseleave", "mapillary2-hover", function(){
+		_map2.on("mouseleave", "mapillary2", function(){
 			deactivateHover();
 		});
+		_map2.on("zoomend", function(e){
+			if(_zoom2 != Math.floor(_map2.getZoom())){
+				_zoom2 = Math.floor(_map2.getZoom());
+				console.log(_zoom2);
+				if(_ids.length > 0){
+					var selectedNames = [];
+					if(_zoom2 < 13) getHighlightedBundles(selectedNames,_zoom2+1);
+					else getHighlightedBundles(selectedNames,13);
+					_map2.setFilter("mapillary2-hover", ["in","name"].concat(selectedNames));
+				} else _map2.setFilter('mapillary2-hover',['in','name','']);
+			}
+		});
+		/*
+		_map2.on("move", function(e){
+			_map.setZoom(_map2.getZoom());
+			_map.setCenter(_map2.getCenter());
+			_map.setPitch(_map2.getPitch());
+			_map.setBearing(_map2.getBearing());
+		});
+		*/
+		_map2.getCanvas().style.cursor = "pointer";
 	});
-	map.addControl(new mapboxgl.NavigationControl());
-	map2.addControl(new mapboxgl.NavigationControl());
+	_map.addControl(new mapboxgl.NavigationControl());
+	_map2.addControl(new mapboxgl.NavigationControl());
 }
 
+//Change current month when new value for month combo box is selected
 function changeMonth(){
 	var month, r = confirm("Do you want to change the month of the data?");
 	if(r == true){
 		month = document.getElementById("month").value;
 		window.location = "http://localhost:31338/dualMaps.html?month="+month;
 	} else {
-		document.getElementById("month").value = currentMonth;
+		document.getElementById("month").value = _currentMonth;
 	}
 }
 
+//Highlights hovered and related trajectories
 function activateHover(e){
-	var i,j,index;
-	map.getCanvas().style.cursor = "pointer";
 	var idStr = e.features[0].properties.voyageIDs;
+	var selectedNames1=[], selectedNames2=[];
 	idStr = idStr.substring(0,idStr.length);
-	var ids = idStr.split(",");			
-	//Get trajectories on left-hand side with one or more of the same voyage Ids as the one hovered
-	var features = map.queryRenderedFeatures({layers:['mapillary-hover']});
-	var selectedNames = [];
-	for(j=0; j<features.length; j++){
-		for(i=0; i< ids.length; i++){
-			index = features[j].properties.voyageIDs.indexOf(ids[i]);
-			if(index > -1){
-				selectedNames.push(features[j].properties.name);
-				break;
-			}
-		}
-	};	
-	///Get trajectories on right-hand side with one of the same voyage Ids as the one hovered
-	var features2 = map2.queryRenderedFeatures({layers:['mapillary2-hover']});
-	var selectedNames2 = [];
-	for(j=0; j<features2.length; j++){
-		for(i=0; i< ids.length; i++){
-			index = features2[j].properties.voyageIDs.indexOf(ids[i]);
-			if(index > -1){
-				selectedNames2.push(features2[j].properties.name);
-				break;
-			}
-		}
-	};
+	_ids = idStr.split(",");		
+	_zoom1 = Math.floor(_map.getZoom());
+	_zoom2 = Math.floor(_map2.getZoom());
+	//If bundled trajectory on left-side map is selected
+	if(_currentMapNum=1){
+		if(_zoom1 <= 13) selectedNames2 = getHighlightedTrajectories(selectedNames1,_zoom1);
+		else selectedNames2 = getHighlightedTrajectories(selectedNames1,13);
+	//If bundled trajectory on right-side map is selected
+	} else if(_currentMapNum=1){
+		if(_zoom2 <= 12) selectedNames1 = getHighlightedTrajectories(selectedNames2,_zoom2);
+		else selectedNames1 = getHighlightedTrajectories(selectedNames2,13);
+	} else //This should never be reached
+		console.log("Error");
 	//Highlight Trajectories
-	map.setFilter("mapillary-hover", ["in","name"].concat(selectedNames));
-	map.setPaintProperty('mapillary-hover', 'line-opacity',1);
-	map2.setFilter("mapillary2-hover", ["in","name"].concat(selectedNames2));
-	map2.setPaintProperty('mapillary2-hover', 'line-opacity',1);
+	_map.setFilter("mapillary-hover", ["in","name"].concat(selectedNames1));
+	_map2.setFilter("mapillary2-hover", ["in","name"].concat(selectedNames2));
 }
 
+//Deactivates highlighting and resets _ids
 function deactivateHover(){
-	setTimeout( function(){
-		map.setFilter("mapillary-hover", ["has","name"]);	
-		map2.setFilter("mapillary2-hover", ["has","name"]);	
-	}, 200);
-	map2.setPaintProperty('mapillary2-hover', 'line-opacity', 0);
-	map.setPaintProperty('mapillary-hover', 'line-opacity', 0);
+	_map.setFilter('mapillary-hover',['in','name','']);
+	_map2.setFilter('mapillary2-hover',['in','name','']);
+	_ids=[];
+	_currentMapNum = 0;
+}
+
+//Get trajectories that share ALL the same voyage ids as the hovered bundled trajectory
+function getHighlightedTrajectories(selectedNames1,zoom){
+	var selectedNames2 = [];
+	var filename = "http://localhost:31338/geojson/Zone19/Zone19_2011_"+_currentMonth+"("+zoom+").geojson";
+	var request = new XMLHttpRequest();
+	request.open("GET",filename,false);
+	request.send(null);
+	var json = JSON.parse(request.responseText);
+	var features = json.features;
+	for(var i=0; i<features.length; i++){
+		if(_ids.every(val => features[i].properties.voyageIDs.includes(val)) && features[i].properties.voyageIDs.split(",").every(val => _ids.includes(val))){
+			selectedNames1.push(features[i].properties.name);
+			features[i].properties.bundledTrajectories.split(",").forEach(function(tr){
+				if(!selectedNames2.includes(tr)) selectedNames2.push(tr);
+			});
+			console.log(selectedNames2);
+		}
+	}
+	return selectedNames2;	
+}
+
+/*
+//Get trajectories that share ANY of the same voyage ids as the hovered bundled trajectory
+function getHighlightedTrajectories(selectedNames1,selectedNames2,zoom){
+	
+	
+	
+	var index;
+	var filename = "http://localhost:31338/geojson/Zone19/Zone19_2011_"+_currentMonth+"("+zoom+").geojson";
+	var request = new XMLHttpRequest();
+	request.open("GET",filename,false);
+	request.send(null);
+	var json = JSON.parse(request.responseText);
+	var features = json.features;
+	for(var i=0; i<features.length; i++){
+		if(features[i].properties.voyageIDs.split(",").every(val => _ids.includes(val)))
+			selectedNames.push(features[i].properties.name);
+	}
+}
+*/
+
+//Checks if two arrays contain the same elements
+function arrayEqual(arr1, arr2){
+	if(arr1.length !== arr2.length) return false;
+	for(var i = arr1.length; i--;){
+		if(arr1[i] !== arr2[i]) return false
+	}
+	return true;
 }
 </script>
 
