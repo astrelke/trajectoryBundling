@@ -26,33 +26,44 @@ init();
 /*Setup Function*/
 function init(){
 	var fs = require('fs');
-	var T, features,result,ids=[],tempIds;
+	var T, features,result,ids=[],bundledTrajectories=[],tempIds;
 	var feature,json,newJson,Tobj;
 	var e,Y,costAdv;
 	var start = true;
-	var MinLns;
-	var fileName;
+	var MinLns,trNum;
+	var fileName,trName;
 	
 	//Bundle trajectories from bottom level up
 	for(var level=parseInt(myArgs[4]); level >=0; level--){
 		console.log("Level: " + level);
 		T=[];
 		features=[];
+		trNum=1;
 		//Determine input file
 		if(start) json = JSON.parse(fs.readFileSync(myArgs[0], "utf8"));	
 		else json = JSON.parse(fs.readFileSync(insertFileNumber(myArgs[0],level+1), "utf8"));	
-		//else json = JSON.parse(fs.readFileSync(myArgs[0], "utf8"));		
 		json.features.forEach(function(feat){
 			/*Create a different property for each voyageID
 			This is done because MapboxGL does not support regex or array
 			filtering yet, so voyageIDs have to be located via key 
 			using the 'has' filter. Used for linked highlighting.
 			*/
-			if(start){
-				tempIds = feat.id.slice(1,-1).split(",");
-				ids.push("|" + tempIds[0] + "_" + tempIds[1] + "|");
-			} else  ids = feat.properties.voyageIDs.split(",");			
-			Tobj = {"coordinates":feat.geometry.coordinates,"density":ids.length,"weight":1,"voyageIDs":ids,"bundledTrajectories":[]};
+			if(start){ 
+				tempIds = feat.id.slice(1,-1).split(","); 
+				ids.push("|" + tempIds[0] + "_" + tempIds[1] + "|"); 
+				bundledTrajectories = [];
+				//Create trajectory name
+				trName = "|" + level.toString() + "_" + trNum.toString() + "|";
+				trNum++;
+			} else{
+				ids = feat.properties.voyageIDs.split(",");		
+				trName = feat.properties.name;
+				//Check to see if any child trajectories exist
+				if(level >= parseInt(myArgs[4])-1) bundledTrajectories = [];
+				else bundledTrajectories = feat.properties.bundledTrajectories.split(",");
+			}
+			//Create trajectory object
+			Tobj = {"name": trName, "coordinates":feat.geometry.coordinates,"density":ids.length,"weight":1,"voyageIDs":ids,"bundledTrajectories":bundledTrajectories};
 			ids=[];
 			//Get voyageID property keys
 			T.push(Tobj);
@@ -64,11 +75,11 @@ function init(){
 		costAdv =  parseFloat(myArgs[3]) / Math.pow(2,level);
 		//Run TRACLUS 
 		if(start) result = T;
-		else result = TRACULUS(T,e,MinLns,costAdv,Y);			
+		else result = TRACULUS(T,e,MinLns,costAdv,Y,level);			
 		//Create array of GEOJSON feature objects
 		for(var i=0;i<result.length;i++){
 			feature = {"type":"Feature", "geometry":{"type":"LineString", "coordinates":result[i].coordinates}, 
-			"properties":{"name":i.toString(),"density":result[i].density,"weight":result[i].weight, 
+			"properties":{"name":result[i].name,"density":result[i].density,"weight":result[i].weight, 
 			"voyageIDs":result[i].voyageIDs.toString().replace(/\s+/g,''), "bundledTrajectories": result[i].bundledTrajectories.toString().replace(/\s+/g,'')}}; 
 			features.push(feature);
 		}
@@ -86,7 +97,7 @@ function init(){
 	Inputs (T: Trajectories)
 	Output (R: Representative Trajectory) 
 */
-function TRACULUS(T,e,MinLns,costAdv,Y){
+function TRACULUS(T,e,MinLns,costAdv,Y,level){
 	/*Variables
 		Arrays (
 			D: Set of line segments
@@ -96,14 +107,13 @@ function TRACULUS(T,e,MinLns,costAdv,Y){
 		Objects (RTR: Representative Trajectory)
 		Integers (i: Trajectory Index)
 	*/
-	var D=[],O=[],R=[]; var i =0; var RTR;
+	var D=[],O=[],R=[]; var RTR;
 	/* Partition Phase */
 	//01: Loop through each trajectory tr
 	//console.log("Paritioning Phase Started");
 	T.forEach(function(tr) {
 		//02 & 03: Get a set L of line segments and Accumulate L into a set D
-		ApproximateTrajectoryParitioning(tr,i,D,Y,costAdv); 
-		i++;
+		ApproximateTrajectoryParitioning(tr,D,Y,costAdv); 
 	});	
 	//Same trajectories as last levels
 	if(D.length == prevParLength) return R;
@@ -115,22 +125,24 @@ function TRACULUS(T,e,MinLns,costAdv,Y){
 	O = LineSegmentClustering(D,e,MinLns);
 	//console.log("Clusters Generated");
 	//05: Loop through each cluster c
-	i=1;
+	var i=1; var trName;
+	var originalTrajectory, newTrajectory;
 	//var maxDensity=0;
 	O.forEach(function(C) {
 		//06: Get a represenative trajectory
-		RTR = RepresentativeTrajectoryGeneration(C,MinLns,Y);
+		trName = "|" + level.toString() + "_" + i.toString() + "|";
+		RTR = RepresentativeTrajectoryGeneration(C,MinLns,Y,trName);
 		if(RTR.coordinates.length>1){
 			R.push(RTR);
-			//console.log("Representative Trajectory: " + i.toString());
-			//console.log("Voyage Length: " + RTR.voyageIDs.length);
+			console.log("Representative Trajectory: " + RTR.name);
+			console.log("Voyage Length: " + RTR.voyageIDs.length);
 			i++;
 		}
 	});
 	console.log("Bundle Size: " + R.length);
 	//console.log("Grouping Phase Complete");
 	return R;
-}
+} 
 
 /* Approximate Trajectory Paritioning
 	Inputs 
@@ -141,7 +153,7 @@ function TRACULUS(T,e,MinLns,costAdv,Y){
 		MinLns: Minimum length of paritioned line segment)
 	Output (D: Set of line segments) 
 */
-function ApproximateTrajectoryParitioning(tr,i,D,Y,costAdv){
+function ApproximateTrajectoryParitioning(tr,D,Y,costAdv){
 	/*Variables
 		Arrays (
 			line: Partitioned line segment
@@ -156,13 +168,12 @@ function ApproximateTrajectoryParitioning(tr,i,D,Y,costAdv){
 			costNopar: MDL cost of original line 
 		)
 	*/
-	var line=[]; var startIndex=0,len,currIndex,counter=1; var costPar,costNopar,angle; var Dobj;
+	var line=[]; var startIndex=1,len=1,currIndex,counter=1; var costPar,costNopar,angle; var Dobj;
 	var diff;
 	line.push(tr.coordinates[0]); //The starting point
 	//Iterate while there exist a partitioning in the line segment
 	for(;;){
-		costPar=0;
-		costNopar=0;
+		costPar = costNopar = 0;
 		for (len = 1; startIndex+len < tr.coordinates.length; len++){
 			currIndex = startIndex+len;
 			if(getDistance(tr.coordinates[startIndex], tr.coordinates[currIndex]) < Y)
@@ -170,17 +181,16 @@ function ApproximateTrajectoryParitioning(tr,i,D,Y,costAdv){
 			costPar = MDLpar(tr.coordinates, startIndex, currIndex);
 			costNopar += MDLnopar(tr.coordinates, currIndex-1, currIndex);
 			diff = costPar - costNopar;
-			/* check if partitioning at the current point makes
-			the MDL cost larger than not partitioning*/
+			//check if partitioning at the current point makes
+			//the MDL cost larger than not partitioning
 			if(costPar + costAdv > costNopar){
 				//partition at this point
-				line.push(tr.coordinates[currIndex]);
+				line.push(tr.coordinates[currIndex-1]);
 				angle = calcLineAngle(line);
-			//	console.log("Angle: " + angle);
-				Dobj = {"L":line,"index": D.length, "trajectory":i,"clusterId":0,"classified":false,"noise":false,"density":tr.density,"voyageIDs": tr.voyageIDs,"angle":angle};
+				Dobj = {"L":line,"index": D.length, "trajectory":tr.name,"clusterId":0,"classified":false,"noise":false,"density":tr.density,"voyageIDs": tr.voyageIDs,"bundledTrajectories":tr.bundledTrajectories,"angle":angle};
 				D.push(Dobj);
 				line = [];
-				line.push(tr.coordinates[currIndex]);
+				line.push(tr.coordinates[currIndex-1]);
 				startIndex = currIndex;
 				len = 0;
 				break;
@@ -189,7 +199,8 @@ function ApproximateTrajectoryParitioning(tr,i,D,Y,costAdv){
 		if(startIndex+len >= tr.coordinates.length) break;
 	}
 	line.push(tr.coordinates[tr.coordinates.length-1]);
-	Dobj = {"L":line,"index": D.length, "trajectory":i,"clusterId":0,"classified":false,"noise":false,"density":tr.density,"voyageIDs":tr.voyageIDs};
+	angle = calcLineAngle(line);
+	Dobj = {"L":line,"index": D.length, "trajectory":tr.name,"clusterId":0,"classified":false,"noise":false,"density":tr.density,"voyageIDs":tr.voyageIDs, "bundledTrajectories":tr.bundledTrajectories,"angle":angle};
 	D.push(Dobj);
 }
 
@@ -214,21 +225,19 @@ function LineSegmentClustering(D,e,MinLns,MinClus){
 			clusterId: Cluster index
 		)
 	*/
-	var tempD,tempC,C=[],N,Q=[],O=[]; var clusterId = 0; 
+	var tempD,tempC,C=[],N,O=[]; var clusterId = 0; 
 	/*Step 1:*/
 	for(var i=0; i<D.length;i++){ 
 		if(!D[i].classified){
 			//Compute N(L) and predict clusters, where L=D[i]
-			tempD = D; tempC = C; 
+			tempD = D.slice(); tempC = C.slice(); 
 			N = Ne1(tempD,i,e,tempC,clusterId);
 			if(N.density >= MinLns){
 				//Assign all points in neighborhood to cluster
-				D = tempD;
-				C = tempC;
-				//Insert neighborhood cluster into queue Q;
-				Q = N;
+				D = tempD.slice();
+				C = tempC.slice();;
 				/*Step 2*/
-				ExpandCluster(Q,D,C,clusterId,e,MinLns);
+				ExpandCluster(N,D,C,clusterId,e,MinLns);
 				clusterId++; /*a new id */
 			} else D[i].noise = true;
 		}
@@ -286,7 +295,7 @@ function ExpandCluster(Q,D,C,clusterId,e,MinLns){
 		Y=Smoothing value)
 	Output (RTR: A representative trajectory) 
 */
-function RepresentativeTrajectoryGeneration(C,MinLns,Y){
+function RepresentativeTrajectoryGeneration(C,MinLns,Y,trName){
 	/*Variables
 		Arrays (
 			V: Average distance vector
@@ -319,7 +328,7 @@ function RepresentativeTrajectoryGeneration(C,MinLns,Y){
 		)
 	*/
 	var V,v2,C2=[],P=[], voyageIDs,sweepLine,intersects;
-	var intersect,pAvg,pAvg2,RTR={"coordinates":[],"density":0,"weight":0,"voyageIDs":[],"bundledTrajectories":[]};
+	var intersect,pAvg,pAvg2,RTR={"name":trName, "coordinates":[],"density":0,"weight":0,"voyageIDs":[],"bundledTrajectories":[]};
 	var i=0, j=0,pNum=0,density=0;
 	var x1=0.0,x2=0.0,y1=0.0,y2=0.0,angle,diff,xPrev=0.0,y=0.0;
 	var lineIntersection = require('line-intersection');
@@ -332,16 +341,29 @@ function RepresentativeTrajectoryGeneration(C,MinLns,Y){
 		voyageIDs.forEach(function(id){
 			if(!(RTR.voyageIDs.includes(id))) RTR.voyageIDs.push(id);
 		});
-		if(!(RTR.bundledTrajectories.includes(v.trajectory))) RTR.bundledTrajectories.push(v.trajectory);
+		if(!(RTR.bundledTrajectories.includes(v.trajectory))) {
+			RTR.bundledTrajectories.push(v.trajectory);
+			if(v.bundledTrajectories.length > 0) RTR.bundledTrajectories = RTR.bundledTrajectories.concat(v.bundledTrajectories); 
+		}
 	});
 	RTR.density = RTR.voyageIDs.length;
+	//console.log(RTR.bundledTrajectories);
+	//console.log();
+	//Remove duplicate child trajectories
+	
+	for(var a=0; a<RTR.bundledTrajectories.length; ++a){
+		for(var b=a+1; b<RTR.bundledTrajectories.length; ++b){
+			if(RTR.bundledTrajectories[a] === RTR.bundledTrajectories[b]) 
+				RTR.bundledTrajectories.splice(b--,1);
+		}
+	}
 	/*Calculate weight of represenative trajectory. 
 	* Unlike density, weight is used as the line width value
 	*/
-	if(RTR.density > 120){
+	if(RTR.density > 128){
 		RTR.weight = 5.0;
 	} else {
-		RTR.weight = RTR.density/30 + 1.0;
+		RTR.weight = RTR.density/32 + 1.0;
 	}
 	//Compute average direction vector V
 	V = [[x1/density,y1/density],[x2/density,y2/density]];
@@ -426,13 +448,15 @@ function MDLpar(tr, startIndex, currIndex){
 	//Calc L(D|H)
 	for(var i=startIndex; i<currIndex; i++){
 		//Calc perpendicular distance
-		perpDistance += calcPerpDistance([tr[startIndex],tr[currIndex]],[tr[i],tr[i+1]]);
+		perpDistance = calcPerpDistance([tr[startIndex],tr[currIndex]],[tr[i],tr[i+1]]);
 		//Calc angular distance
-		angularDistance += calcAngularDistance([tr[startIndex],tr[currIndex]],[tr[i],tr[i+1]]);
+		angularDistance = calcAngularDistance([tr[startIndex],tr[currIndex]],[tr[i],tr[i+1]]);
+		if(perpDistance < 1.0) perpDistance = 1.0;
+		if(angularDistance < 1.0) angularDistance = 1.0;
+		D_H += Math.log2(perpDistance) + Math.log2(angularDistance);
 	}
-	if(perpDistance < 1.0) perpDistance = 1.0;
-	if(angularDistance < 1.0) angularDistance = 1.0;
-	D_H = Math.log2(perpDistance) + Math.log2(angularDistance);
+	
+	
 	return D_H + H;
 }
 /*Get MDL cost with no partition*/
@@ -609,8 +633,8 @@ function Ne1(D,index,e,C,clusterId){
 	D[index].noise = false;
 	C[clusterId].push(D[index]);
 	N.density += D[index].density;
-	startAngle = D[index].angle - 22;
-	endAngle = D[index].angle + 22;
+	startAngle = D[index].angle - 25;
+	endAngle = D[index].angle + 25;
 	if(startAngle <= 0) startAngle += 360;
 	if(endAngle > 360) endAngle -= 360;
 	reverseStartAngle = startAngle + 180;
@@ -619,8 +643,8 @@ function Ne1(D,index,e,C,clusterId){
 	if(reverseEndAngle > 360) reverseEndAngle -= 360;
 	for(var i=0; i<D.length; i++){
 		//Add line to cluster if: 1) Line is not the same as inital line. 2) Line is not classified. 3) Line angle is within a 45 degree quadrant of inital line
-		if(i != index && !D[i].classified){
-		//&& (angle_between(D[i].angle,startAngle,endAngle) || angle_between(D[i].angle,reverseStartAngle,reverseEndAngle))){
+		if(i != index && !D[i].classified
+		&& (angle_between(D[i].angle,startAngle,endAngle) || angle_between(D[i].angle,reverseStartAngle,reverseEndAngle))){
 			//Get distance
 			var d = dist(D[index].L,D[i].L);
 			//Add line if distance is less than or equal to e
@@ -651,8 +675,8 @@ function Ne2(D,index,e){
 	if(reverseEndAngle > 360) reverseEndAngle -= 360;
 	for(var i=0; i<D.length; i++){
 		//Add line to cluster if: 1) Line is not the same as inital line. 2) Line is not classified. 3) Line angle is within a 45 degree quadrant of inital line
-		if(i != index && !D[i].classified){
-		//&& (angle_between(D[i].angle,startAngle,endAngle) || angle_between(D[i].angle,reverseStartAngle,reverseEndAngle))){
+		if(i != index && !D[i].classified
+		&& (angle_between(D[i].angle,startAngle,endAngle) || angle_between(D[i].angle,reverseStartAngle,reverseEndAngle))){
 			//Get distance
 			var d = dist(D[index].L,D[i].L);
 			//Add line if distance is less than or equal to e
@@ -676,7 +700,7 @@ function rotateVector(v,angle){
 	x2 = v.L[1][0]*Math.cos(radians) - v.L[1][1]*Math.sin(radians); 
 	y1 = v.L[0][0]*Math.sin(radians) + v.L[0][1]*Math.cos(radians); 
 	y2 = v.L[1][0]*Math.sin(radians) + v.L[1][1]*Math.cos(radians);
-	var obj = {"L":[[x1,y1],[x2,y2]],"trajectory":v.trajectory,"clusterId":v.clusterId,"classified":v.classified,"noise":v.noise,"density":v.density};
+	var obj = {"L":[[x1,y1],[x2,y2]],"trajectory":v.trajectory,"clusterId":v.clusterId,"classified":v.classified,"noise":v.noise,"density":v.density, "voyageIDs":v.voyageIDs, "bundledTrajectories":v.bundledTrajectories};
 	return obj;
 }
 /*Rotate matrix counter-clockwise*/
